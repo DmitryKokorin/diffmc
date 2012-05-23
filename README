@@ -1,0 +1,5 @@
+Pure c++ with no dependencies. Should be possible to build with any 
+modern compiler (tr1/c++11 random number generator is used). Known to 
+work wih gcc4.6, msvc9, msvc10.
+
+The code is of scientific quality (e.g. no exeption handling). 
