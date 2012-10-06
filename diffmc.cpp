@@ -77,7 +77,6 @@ DiffMCApp::DiffMCApp() :
     m_chunkParams(),
     m_dataBuff(),
     m_positions()
-    //, m_meanCos(0.)
 {
     m_positions.reserve(m_maxPhotons);
 }
@@ -268,13 +267,6 @@ bool DiffMCApp::getOpts(int argc, char ** argv)
 
             m_points = atoi(argv[i]);
         }
-/*        else if (!strcmp(argv[i], "--H")) {
-
-            if (++i == argc)
-                return false;
-
-            Optics::H = atof(argv[i]);
-        }*/
         else
             return false;
     }
@@ -291,9 +283,6 @@ int DiffMCApp::run()
     fprintf(stderr, "# maxtime = %.17e\n", m_maxTime);
     fprintf(stderr, "# H = %.17e\n", Optics::H);
     fprintf(stderr, "# lambda = %.17e\n", Optics::lambda);
-
-    //Optics::init();
-
 
     m_maxTime *= Optics::c;
 
@@ -376,10 +365,7 @@ int DiffMCApp::run()
 
                 timeIdx = processScattering(ph, buff, timeIdx);
 
- //               Vector3 s_i = ph.s_i;
                 ph.scatter();
-
- //               m_meanCos += s_i*ph.s_i;
 
             }
 
@@ -395,8 +381,6 @@ int DiffMCApp::run()
         if (m_maxPhotons % flushRate)
             flushBuffers(scatteredCount, buff);
     }
-
-//    fprintf(stderr, "# <cos> = %f\n", m_meanCos / m_maxScatterings);
 
     output();
 
@@ -421,32 +405,23 @@ size_t DiffMCApp::processScattering(const Photon& ph, DataBuff& buff, size_t tim
 
     while ( i != buff.points.end() && (i->time < ph.time)) {
 
-        Vector3 pos = ph.pos - ph.s_i * (ph.time - i->time)/nn;
+        Vector3 r = ph.pos - ph.s_i * (ph.time - i->time)/nn;
 
-        Float x2 = pos.x() * pos.x();
-        Float y2 = pos.y() * pos.y();
-        Float z2 = pos.z() * pos.z();
+        Vector3 r2(r.x()*r.x(),   r.y()*r.y(),   r.z()*r.z());
+        Vector3 r3(r2.x()*r.x(),  r2.y()*r.y(),  r2.z()*r.z());
+        Vector3 r4(r2.x()*r2.x(), r2.y()*r2.y(), r2.z()*r2.z());
+        Vector3 r5(r3.x()*r2.x(), r3.y()*r2.y(), r3.z()*r2.z());
+        Vector3 r6(r3.x()*r3.x(), r3.y()*r3.y(), r3.z()*r3.z());
 
-        i->x2 += x2;
-        i->y2 += y2;
-        i->z2 += z2;
-
-        Float x4 = x2*x2;
-        Float y4 = y2*y2;
-        Float z4 = z2*z2;
-
-        i->x4 += x4;
-        i->y4 += y4;
-        i->z4 += z4;
-
-        i->x6 += x2*x4;
-        i->y6 += y2*y4;
-        i->z6 += z2*z4;
+        i->r  += r;
+        i->r2 += r2;
+        i->r3 += r3;
+        i->r4 += r4;
+        i->r5 += r5;
+        i->r6 += r6;
 
         i->scatterings += ph.scatterings;
         i->measurements++;
-
-        //fprintf(stderr, "%.17e\t%.17e\n", ph.time, i->time);
 
         ++i;
     }
@@ -478,23 +453,21 @@ void DiffMCApp::output()
 
         if (i->measurements) {
 
-            Float x2 = i->x2 / i->measurements;
-            Float y2 = i->y2 / i->measurements;
-            Float z2 = i->z2 / i->measurements;
+            Vector3 r  = i->r / i->measurements;
+            Vector3 r2 = i->r2 / i->measurements;
+            Vector3 r3 = i->r3 / i->measurements;
+            Vector3 r4 = i->r4 / i->measurements;
+            Vector3 r5 = i->r5 / i->measurements;
+            Vector3 r6 = i->r6 / i->measurements;
 
-            Float x4 = i->x4 / i->measurements;
-            Float y4 = i->y4 / i->measurements;
-            Float z4 = i->z4 / i->measurements;
-
-            Float x6 = i->x6 / i->measurements;
-            Float y6 = i->y6 / i->measurements;
-            Float z6 = i->z6 / i->measurements;
-
-            fprintf(file, "%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%d\n",
+            fprintf(file, "%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%.17e\t%d\n",
                     i->time / Optics::c,
-                    x2, y2, z2,
-                    x4, y4, z4,
-                    x6, y6, z6,
+                    r.x(), r.y(), r.z(),
+                    r2.x(), r2.y(), r2.z(),
+                    r3.x(), r3.y(), r3.z(),
+                    r4.x(), r4.y(), r4.z(),
+                    r5.x(), r5.y(), r5.z(),
+                    r6.x(), r6.y(), r6.z(),
                     ((Float)i->scatterings) / i->measurements,
                     i->measurements);
         }
@@ -833,16 +806,6 @@ void DiffMCApp::prepareDataBuff(DataBuff& buff)
     for (int j = 0; j < m_points; ++j) {
 
         DataBuff::Point pt;
-        pt.measurements = 0;
-        pt.x2 = 0.;
-        pt.y2 = 0.;
-        pt.z2 = 0.;
-        pt.x4 = 0.;
-        pt.y4 = 0.;
-        pt.z4 = 0.;
-        pt.x6 = 0.;
-        pt.y6 = 0.;
-        pt.z6 = 0.;
         pt.time = j * (m_maxTime / m_points);
         buff.points.push_back(pt);
     }

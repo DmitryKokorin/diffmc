@@ -16,17 +16,12 @@ public:
 
     struct Point
     {
-        Float x2;
-        Float y2;
-        Float z2;
-
-        Float x4;
-        Float y4;
-        Float z4;
-
-        Float x6;
-        Float y6;
-        Float z6;
+        Point()
+          : r(), r2(), r3(), r4(), r5(), r6(), time(), scatterings(), measurements()
+        {
+        }
+    
+    	Vector3 r, r2, r3, r4, r5, r6;
 
         Float time;
 
@@ -35,17 +30,12 @@ public:
 
         void clear()
         {
-            x2 = 0.;
-            y2 = 0.;
-            z2 = 0.;
-
-            x4 = 0.;
-            y4 = 0.;
-            z4 = 0.;
-
-            x6 = 0.;
-            y6 = 0.;
-            z6 = 0.;
+            r.clear();
+            r2.clear();
+            r3.clear();
+            r4.clear();
+            r5.clear();
+            r6.clear();
 
             scatterings  = 0.;
             measurements = 0;
@@ -53,17 +43,12 @@ public:
 
         Point& operator+=(const Point& rhv)
         {
-            x2 += rhv.x2;
-            y2 += rhv.y2;
-            z2 += rhv.z2;
-
-            x4 += rhv.x4;
-            y4 += rhv.y4;
-            z4 += rhv.z4;
-
-            x6 += rhv.x6;
-            y6 += rhv.y6;
-            z6 += rhv.z6;
+            r  += rhv.r;
+            r2 += rhv.r2;
+            r3 += rhv.r3;
+            r4 += rhv.r4;
+            r5 += rhv.r5;
+            r6 += rhv.r6;
 
             scatterings  += rhv.scatterings;
             measurements += rhv.measurements;
@@ -210,7 +195,6 @@ private:
 
     //right region border and number of iterations for some partition chunk
     typedef std::pair<Float, size_t>    ChunkParam;
-//    typedef std::list<ChunkParam>       ChunkParamsList;
     typedef std::vector<ChunkParam>     ChunkParamsList;
 
     ChunkParamsList    m_chunkParams;

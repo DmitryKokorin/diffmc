@@ -37,6 +37,7 @@ public:
     inline Float z() const;
 
     inline Float norm() const;
+    inline void clear();
     inline Vector3& normalize();
 
 private:

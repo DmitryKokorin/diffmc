@@ -91,6 +91,11 @@ Float Vector3::norm() const
     return sqrt(x_*x_ + y_*y_ + z_*z_);
 }
 
+void Vector3::clear()
+{
+    x_ = 0.; y_ = 0.; z_ = 0.;
+}
+
 Vector3& Vector3::normalize()
 {
     Float n = norm();
