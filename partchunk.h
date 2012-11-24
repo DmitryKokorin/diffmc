@@ -38,9 +38,9 @@ public:
     inline bool  isAngleInRange(const Float angle) const { return angle > m_minAngle && angle <= m_maxAngle;}
 
     static const Float kEpsilon;
-    static const int   kThetaDegree = 10;
+    static const int   kThetaDegree = 15;
     static const int   kThetaSize   = (1 << kThetaDegree) + 1;    //1025
-    static const int   kPhiDegree   = 8;
+    static const int   kPhiDegree   = 7;
     static const int   kPhiSize     = (1 << kPhiDegree) + 1;      //1025
 
 
