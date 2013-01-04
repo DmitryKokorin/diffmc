@@ -70,26 +70,20 @@ private:
         int     points;
     };
 
-
     Options options_;
-
-
 
     void flushBuffers(const int scatteredCount, const DataBuff& buff);
     void output();
+    size_t processScattering(const Photon& ph, DataBuff& buff, size_t idx);
 
 
-    bool  prepareOFreePath(LinearInterpolation& length);
-    bool  prepareEFreePath(LinearInterpolation& length);
+    template <typename T>
+    bool  prepareFreePath(LinearInterpolation &l, const char *name, const bool options, const std::string &fileName);
 
     bool  prepareEChannelProb(LinearInterpolation& prob);
 
-    bool  prepareOEPartition(Partition& partition);
-    bool  prepareEOPartition(Partition& partition);
-    bool  prepareEEPartition(Partition& partition);
-
-    size_t processScattering(const Photon& ph, DataBuff& buff, size_t idx);
-
+    template <typename T>
+    bool  preparePartition(Partition &p, const char *name, const bool options, const std::string &fileName);
 
 
     LinearInterpolation m_eLength;
@@ -113,3 +107,86 @@ private:
     DiffMCApp& operator=(const DiffMCApp& other);
     DiffMCApp(const DiffMCApp& other);
 };
+
+template <typename T>
+bool DiffMCApp::prepareFreePath(LinearInterpolation &l, const char *name, const bool options, const std::string &fileName)
+{
+    using namespace std;
+
+    if (options == Load) {
+
+        cerr << "loading " << name << "-beam free path file..." << endl;
+
+        if (!l.load(fileName)) {
+
+            cerr << "can't load " << name << "-beam free path data" << endl;
+            return false;
+        }
+    }
+
+    if (options == Create || options == Save) {
+
+        cerr << "calculating " << name << "-beam free path data..." << endl;
+        createFreePath<T>(l);
+    }
+
+    if (options == Save) {
+
+        cerr << "saving " << name << "-beam free path data to file..." << endl;
+
+        if (!l.save(fileName)) {
+
+            cerr << "can't save " << name << "-beam free path data" << endl;
+            return false;
+        }
+    }
+
+    cerr << "done" << endl;
+
+    return true;
+}
+
+template <typename T>
+bool DiffMCApp::preparePartition(Partition &p, const char *name, const bool options, const std::string &fileName)
+{
+    using namespace std;
+
+    if (options == Load) {
+
+        cerr << "loading " << name << " profile file..." << endl;
+
+        if (!p.load(fileName)) {
+
+            cerr << "can't load " << name << " profile data" << endl;
+            return false;
+        }
+    }
+
+    if (options == Create || options == Save) {
+
+        cerr << "calculating " << name << " profile data..." << endl;
+
+        const int chunksNum = m_chunkParams.size();
+        #pragma omp parallel for schedule(dynamic)
+        for (int i = 0; i < chunksNum; ++i) {
+
+            p.addChunk<T>(i == 0 ? 0. : m_chunkParams[i-1].first,
+                    m_chunkParams[i].first, m_chunkParams[i].second);
+        }
+    }
+
+    if (options == Save) {
+
+        cerr << "saving " << name << " profile data to file..." << endl;
+
+        if (!p.save(fileName)) {
+
+            cerr << "can't save " << name << " profile data" << endl;
+            return false;
+        }
+    }
+
+    cerr << "done" << endl;
+
+    return true;
+}

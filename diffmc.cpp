@@ -216,8 +216,6 @@ bool DiffMCApp::getOpts(int argc, char ** argv)
 }
 
 
-
-
 int DiffMCApp::run()
 {
     using namespace std;
@@ -238,10 +236,10 @@ int DiffMCApp::run()
     m_dataBuff.prepare(options_.points, options_.maxTime);
 
     //free path
-    if (!prepareOFreePath(m_oLength))
+    if (!prepareFreePath<Optics::OBeam>(m_oLength, "o", options_.oFreePathOptions, options_.oFreePathName))
         return -1;
 
-    if (!prepareEFreePath(m_eLength))
+    if (!prepareFreePath<Optics::EBeam>(m_eLength, "e", options_.eFreePathOptions, options_.eFreePathName))
         return -1;
 
 
@@ -258,14 +256,13 @@ int DiffMCApp::run()
         m_chunkParams.push_back(ChunkParam(i*chunkStep, 20));
 
     Partition pOE, pEO, pEE;
-
-    if (!prepareOEPartition(pOE))
+    if (!preparePartition<IndicatrixOE>(pOE, "o-e", options_.oeProfileOptions, options_.oeProfileName))
         return -1;
 
-    if (!prepareEOPartition(pEO))
+    if (!preparePartition<IndicatrixEO>(pEO, "e-o", options_.eoProfileOptions, options_.eoProfileName))
         return -1;
 
-    if (!prepareEEPartition(pEE))
+    if (!preparePartition<IndicatrixEE>(pEE, "e-e", options_.eeProfileOptions, options_.eeProfileName))
         return -1;
 
 
@@ -395,82 +392,6 @@ void DiffMCApp::printHelp()
     cerr << "--saveeeprobability [filename]\t\tsave e-e probability to file"  << endl;
 }
 
-bool DiffMCApp::prepareOFreePath(LinearInterpolation& l)
-{
-    using namespace std;
-
-    if (options_.oFreePathOptions == Load) {
-
-        cerr << "loading o-beam free path file..." << endl;
-
-        if (!l.load(options_.oFreePathName)) {
-
-            cerr << "can't load o-beam free path data" << endl;
-            return false;
-        }
-    }
-
-    if (options_.oFreePathOptions == Create || options_.oFreePathOptions == Save) {
-
-        cerr << "calculating o-beam free path data..." << endl;
-        createFreePath<Optics::OBeam>(l);
-    }
-
-    if (options_.oFreePathOptions == Save) {
-
-        cerr << "saving o-beam free path data to file..." << endl;
-
-        if (!l.save(options_.oFreePathName)) {
-
-            cerr << "can't save o-beam free path data" << endl;
-            return false;
-        }
-    }
-
-    cerr << "done" << endl;
-
-    return true;
-}
-
-
-bool DiffMCApp::prepareEFreePath(LinearInterpolation& l)
-{
-    using namespace std;
-
-    if (options_.eFreePathOptions == Load) {
-
-        cerr << "loading e-beam free path file..." << endl;
-
-        if (!l.load(options_.eFreePathName)) {
-
-            cerr << "can't load e-beam free path data" << endl;
-            return false;
-        }
-    }
-
-    if (options_.eFreePathOptions == Create || options_.eFreePathOptions == Save) {
-
-        cerr << "calculating e-beam free path data..." << endl;
-        createFreePath<Optics::EBeam>(l);
-    }
-
-    if (options_.eFreePathOptions == Save) {
-
-        cerr << "saving e-beam free path data to file..." << endl;
-
-        if (!l.save(options_.eFreePathName)) {
-
-            cerr << "can't save e-beam free path data" << endl;
-            return false;
-        }
-    }
-
-    cerr << "done" << endl;
-
-    return true;
-}
-
-
 bool DiffMCApp::prepareEChannelProb(LinearInterpolation& l)
 {
     using namespace std;
@@ -499,140 +420,6 @@ bool DiffMCApp::prepareEChannelProb(LinearInterpolation& l)
         if (!l.save(options_.eeProbabilityName)) {
 
             cerr << "can't save e-e probability data" << endl;
-            return false;
-        }
-    }
-
-    cerr << "done" << endl;
-
-    return true;
-}
-
-
-bool DiffMCApp::prepareEEPartition(Partition& p)
-{
-    using namespace std;
-
-    if (options_.eeProfileOptions == Load) {
-
-        cerr << "loading e-e profile file..." << endl;
-
-        if (!p.load(options_.eeProfileName)) {
-
-            cerr << "can't load e-e profile data" << endl;
-            return false;
-        }
-    }
-
-    if (options_.eeProfileOptions == Create || options_.eeProfileOptions == Save) {
-
-        cerr << "calculating e-e profile data..." << endl;
-
-        const int chunksNum = m_chunkParams.size();
-        #pragma omp parallel for schedule(dynamic)
-        for (int i = 0; i < chunksNum; ++i) {
-
-            p.addChunk<IndicatrixEE>(i == 0 ? 0. : m_chunkParams[i-1].first,
-                    m_chunkParams[i].first, m_chunkParams[i].second);
-        }
-    }
-
-    if (options_.eeProfileOptions == Save) {
-
-        cerr << "saving e-e profile data to file..." << endl;
-
-        if (!p.save(options_.eeProfileName)) {
-
-            cerr << "can't save e-e profile data" << endl;
-            return false;
-        }
-    }
-
-    cerr << "done" << endl;
-
-    return true;
-}
-
-bool DiffMCApp::prepareOEPartition(Partition& p)
-{
-    using namespace std;
-
-    if (options_.oeProfileOptions == Load) {
-
-        cerr << "loading o-e profile file..." << endl;
-
-        if (!p.load(options_.oeProfileName)) {
-
-            cerr << "can't load o-e profile data" << endl;
-            return false;
-        }
-    }
-
-    if (options_.oeProfileOptions == Create || options_.oeProfileOptions == Save) {
-
-        cerr << "calculating o-e profile data..." << endl;
-
-        const int chunksNum = m_chunkParams.size();
-        #pragma omp parallel for schedule(dynamic)
-        for (int i = 0; i < chunksNum; ++i) {
-
-            p.addChunk<IndicatrixOE>(i == 0 ? 0. : m_chunkParams[i-1].first,
-                    m_chunkParams[i].first, m_chunkParams[i].second);
-        }
-    }
-
-    if (options_.oeProfileOptions == Save) {
-
-        cerr << "saving o-e profile data to file..." << endl;
-
-        if (!p.save(options_.oeProfileName)) {
-
-            cerr << "can't save o-e profile data" << endl;
-            return false;
-        }
-    }
-
-    cerr << "done" << endl;
-
-    return true;
-}
-
-
-bool DiffMCApp::prepareEOPartition(Partition& p)
-{
-    using namespace std;
-
-    if (options_.eoProfileOptions == Load) {
-
-        cerr << "loading e-o profile file..." << endl;
-
-        if (!p.load(options_.eoProfileName)) {
-
-            cerr << "can't load e-o profile data" << endl;
-            return false;
-        }
-    }
-
-    if (options_.eoProfileOptions == Create || options_.eoProfileOptions == Save) {
-
-        cerr << "calculating e-o profile data..." << endl;
-
-        const int chunksNum = m_chunkParams.size();
-        #pragma omp parallel for schedule(dynamic)
-        for (int i = 0; i < chunksNum; ++i) {
-
-            p.addChunk<IndicatrixEO>(i == 0 ? 0. : m_chunkParams[i-1].first,
-                    m_chunkParams[i].first, m_chunkParams[i].second);
-        }
-    }
-
-    if (options_.eoProfileOptions == Save) {
-
-        cerr << "saving e-o profile data to file..." << endl;
-
-        if (!p.save(options_.eoProfileName)) {
-
-            cerr << "can't save e-o profile data" << endl;
             return false;
         }
     }
