@@ -1,6 +1,8 @@
 #pragma once
 
+#include <ostream>
 #include "common.h"
+
 
 
 class Vector3
@@ -39,6 +41,12 @@ public:
     inline Float norm() const;
     inline void clear();
     inline Vector3& normalize();
+
+    friend std::ostream &operator<<(std::ostream &stream, const Vector3 &v)
+    {
+        return stream << v.x() << "\t" << v.y() << "\t" << v.z();
+    }
+
 
 private:
 
