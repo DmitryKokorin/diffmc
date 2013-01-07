@@ -1,6 +1,4 @@
-#ifndef _LINTERPOL_H_
-
-#define _LINTERPOL_H_
+#pragma once
 
 #include <vector>
 #include <string>
@@ -12,7 +10,7 @@ class LinearInterpolation
 public:
 
     LinearInterpolation(const Float min = 0., const Float max = 0., const size_t size = 0);
-    
+
     bool load(const std::string& name);
     bool save(const std::string& name);
 
@@ -34,7 +32,3 @@ protected:
 
     std::vector<Float> m_data;
 };
-
-
-
-#endif /* end of include guard: _LINTERPOL_H_ */

@@ -6,11 +6,10 @@
 #include <omp.h>
 
 #include "common.h"
-#include "optics.h"
 #include "indicatrix.h"
 #include "coords.h"
 #include "linterpol.h"
-#include "integrate.h"
+#include "spherical.h"
 
 
 Float symmetrizeTheta(const Float theta);
@@ -19,65 +18,24 @@ Float symmetrizeTheta(const Float theta);
 namespace freepath {
 
 template <class T>
-class phiFunctor
+class Functor
 {
 public:
 
-    phiFunctor(Indicatrix<T, Optics::OBeam>& indO_, Indicatrix<T, Optics::EBeam>& indE_,
-                const Vector3& nn_, const Angle& a_i_,
-                const Float sint_s_, const Float cost_s_)
+    Functor(Indicatrix<T, Optics::OBeam>& indO_, Indicatrix<T, Optics::EBeam>& indE_,
+                const Vector3& nn_, const Angle& a_i_)
         : indO(indO_)
         , indE(indE_)
         , nn(nn_)
         , a_i(a_i_)
-        , sint_s(sint_s_)
-        , cost_s(cost_s_)
     {}
 
-    inline Float operator()(const Float phi)
+    inline Float operator()(const Vector3 &s)
     {
-        Vector3 s_s = Vector3(sint_s*cos(phi), sint_s*sin(phi), cost_s);
+        Angle a_s   = Angle(s, nn);
 
-        Angle a_s   = Angle(s_s, nn);
-
-        return  sint_s * (indO(s_s)*Optics::OBeam::cosd(a_s)/Optics::OBeam::f2(a_s) +
-                          indE(s_s)*Optics::EBeam::cosd(a_s)/Optics::EBeam::f2(a_s) ) / T::cosd(a_i);
-    }
-
-protected:
-
-    Indicatrix<T, Optics::OBeam>& indO;
-    Indicatrix<T, Optics::EBeam>& indE;
-
-    const Vector3& nn;
-    const Angle& a_i;
-
-    Float sint_s;
-    Float cost_s;
-};
-
-
-template <class T>
-class thetaFunctor
-{
-public:
-
-    thetaFunctor(Indicatrix<T, Optics::OBeam>& indO_, Indicatrix<T, Optics::EBeam>& indE_,
-                    const Vector3& nn_, const Angle& a_i_) :
-        indO(indO_),
-        indE(indE_),
-        nn(nn_),
-        a_i(a_i_)
-    {}
-
-    inline Float operator()(const Float theta)
-    {
-        Float cost_s = cos(theta);
-        Float sint_s = sin(theta);
-
-        phiFunctor<T> functor = phiFunctor<T>(indO, indE, nn, a_i, sint_s, cost_s);
-        Adapt s(1.0e-8);
-        return s.integrate(functor, 0., 2*M_PI);
+        return  (indO(s)*Optics::OBeam::cosd(a_s)/Optics::OBeam::f2(a_s) +
+                 indE(s)*Optics::EBeam::cosd(a_s)/Optics::EBeam::f2(a_s) ) / T::cosd(a_i);
     }
 
 protected:
@@ -105,9 +63,9 @@ void createFreePath(LinearInterpolation& li, const int kPoints = 400)
     #pragma omp parallel for schedule(dynamic)
     for (int i = 1; i < kPoints; ++i) {
 
-        Float theta_i     = i*kResolution;
-        Angle   a_i = Angle(theta_i);
-        Vector3 s_i = createSomeDeviantVector(Optics::director, a_i).normalize();
+        Float theta_i = i*kResolution;
+        Angle   a_i   = Angle(theta_i);
+        Vector3 s_i   = createSomeDeviantVector(Optics::director, a_i).normalize();
 
         //create coordinate system
 
@@ -120,9 +78,8 @@ void createFreePath(LinearInterpolation& li, const int kPoints = 400)
         Indicatrix<T, Optics::OBeam> indO = Indicatrix<T, Optics::OBeam>(Vector3(1., 0., 0.), nn);
         Indicatrix<T, Optics::EBeam> indE = Indicatrix<T, Optics::EBeam>(Vector3(1., 0., 0.), nn);
 
-        Adapt s(1.0e-8);
-        freepath::thetaFunctor<T> functor(indO, indE, nn, a_i);
-        Float integral = s.integrate(functor, 0., M_PI);
+        freepath::Functor<T> functor(indO, indE, nn, a_i);
+        Float integral = spherical::integral(functor);
 
         li[i] = 1./(integral);
     }

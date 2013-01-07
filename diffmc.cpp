@@ -369,6 +369,7 @@ void DiffMCApp::printHelp()
     using namespace std;
 
     cerr << "Usage: " << options_.execName << "[options]" << endl;
+
     cerr << "Available options:" << endl;
     cerr << "--workdir [path]\t\t\toutput path" << endl;
     cerr << "--seed [seed]\t\t\tseed for random numbers generator" << endl;
@@ -436,7 +437,7 @@ void DiffMCApp::flushBuffers(const int scatteredCount, const DataBuff& buff)
         m_dataBuff += buff;
         m_photonCnt += scatteredCount;
 
-        fprintf(stderr, "Photons: %d\n", m_photonCnt);
+        std::cerr << "Photons: " << m_photonCnt << std::endl;
 
         if (0 == m_photonCnt % m_saveRate)
             output();
