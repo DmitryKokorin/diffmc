@@ -1,7 +1,7 @@
 #include "mathcompat.h"
 
 #include <functional>
-
+#include <iostream>
 #include <omp.h>
 
 #include "partition.h"
@@ -80,8 +80,6 @@ void Photon::move()
 
     const Float d = -log1p(-rnd)*meanFreePath;
 
-//    fprintf(stderr, "%.17e\t%.17e\n", meanFreePath, d);
-
     pos  += d*s_i;
     time += d*nn;
 }
@@ -109,7 +107,7 @@ void Photon::scatter()
 
         newChannel = Optics::ECHANNEL;
         m_chunk = eoPartition.getChunk(a_i.theta);
-        calcPartitionValues<IndicatrixOE>(nn);
+        calcPartitionValues<IndicatrixOE>();
     }
     else {
 
@@ -119,56 +117,26 @@ void Photon::scatter()
         if (Optics::OCHANNEL == newChannel) {
 
             m_chunk = eoPartition.getChunk(a_i.theta);
-            calcPartitionValues<IndicatrixEO>(nn);
+            calcPartitionValues<IndicatrixEO>();
         }
         else {
 
             m_chunk = eePartition.getChunk(a_i.theta);
-            calcPartitionValues<IndicatrixEE>(nn);
+            calcPartitionValues<IndicatrixEE>();
         }
     }
-
 
     //normalization
     randRect    *= fullIntegral;
 
-
-/*    //binary search of partition rect
-    size_t rectIdx = 0;
-    size_t first = 0;
-    size_t last = m_chunk->m_rects.size() - 1;
-
-    while (first < last) {
-
-        rectIdx = (first + last) / 2;
-        if (randRect > m_rectValues[rectIdx]) {
-
-            first = rectIdx + 1;
-        }
-        else if (randRect < m_rectValues[rectIdx]) {
-
-            last = rectIdx - 1;
-        }
-        else {
-
-            break;
-        }
-    }*/
-
     size_t rectIdx = 0;
     std::vector<Float>::const_iterator i = std::lower_bound(m_rectValues.begin(), m_rectValues.end(), randRect);
-//    std::find_if(m_rectValues.begin(), m_rectValues.end(), std::bind2nd(std::greater_equal<Float>(), randRect));
 
 
-    if (m_rectValues.end() == i) {
-
-        fprintf(stderr, "rect not found!\n");
-
-    }
-    else {
-
+    if (m_rectValues.end() == i)
+        std::cerr << "rect not found!" << std::endl;
+    else
         rectIdx = i - m_rectValues.begin();
-    }
 
     //adjust point
     Float p, t;
@@ -181,7 +149,6 @@ void Photon::scatter()
     Vector3 s_s =  Vector3(sintheta*cos(p), sintheta*sin(p), cos(t));
 
     s_i = invert(mtx)*s_s;
-
     s_i.normalize();  //to be sure
 
     channel = newChannel;
@@ -194,21 +161,15 @@ void Photon::createTransformToPartitionCoords(Matrix3& mtx, Vector3& nn, Angle& 
     Vector3 v2;
     nn = Optics::director;
 
-    if (Angle(s_i, nn).costheta < 0) {
-
+    if (Angle(s_i, nn).costheta < 0)
         nn = -nn;
-    }
 
     a_i = Angle(s_i, nn);
 
-    if (fabs(a_i.sintheta) > kMachineEpsilon) {
-
+    if (fabs(a_i.sintheta) > kMachineEpsilon)
         v2 = crossProduct(s_i, nn).normalize();
-    }
-    else {
-
+    else
         v2 = createSomePerpendicular(s_i).normalize();
-    }
 
     Vector3 v3 = crossProduct(s_i, v2).normalize();
 
@@ -218,29 +179,9 @@ void Photon::createTransformToPartitionCoords(Matrix3& mtx, Vector3& nn, Angle& 
 }
 
 template <class T>
-void Photon::calcPartitionValues(const Vector3& nn)
+void Photon::calcPartitionValues()
 {
-    T ind(Vector3(0., 0., 1.), nn);
-
-    {
-        KnotsVector& knots = m_chunk->m_knots;
-        KnotsVector::iterator k;
-
-        m_knotValues.clear();
-
-        Float res;
-
-        for (k = knots.begin(); k != knots.end(); ++k) {
-
-            Float   sintheta = sin(k->x);
-            Vector3 s_s      = Vector3(sintheta*cos(k->y),
-                                       sintheta*sin(k->y),
-                                       cos(k->x));
-
-            res = sintheta*ind(s_s);
-            m_knotValues.push_back(res);
-        }
-    }
+    KnotsVector& knots = m_chunk->m_knots;
 
     {
         RectsVector& rects = m_chunk->m_rects;
@@ -252,11 +193,11 @@ void Photon::calcPartitionValues(const Vector3& nn)
 
         for (i = rects.begin(); i != rects.end(); ++i) {
 
-            Float rectIntegral = 0.25* (m_knotValues[(*i).tl] +
-                                        m_knotValues[(*i).tr] +
-                                        m_knotValues[(*i).bl] +
-                                        m_knotValues[(*i).br]) *
-                                (*i).square;
+            Float rectIntegral = 0.25* (knots[i->tl].value +
+                                        knots[i->tr].value +
+                                        knots[i->bl].value +
+                                        knots[i->br].value) *
+                                i->square;
 
             fullIntegral += rectIntegral;
 
@@ -268,11 +209,12 @@ void Photon::calcPartitionValues(const Vector3& nn)
 void Photon::choosePointInRect(Float& x, Float& y, const int rectNum, const Float randX, const Float randY)
 {
     Rect& rect = m_chunk->m_rects[rectNum];
+    KnotsVector &knots = m_chunk->m_knots;
 
-    Float b1 = m_knotValues[rect.tl];
-    Float b2 = m_knotValues[rect.tr] - b1;
-    Float b3 = m_knotValues[rect.bl] - b1;
-    Float b4 = b1 - m_knotValues[rect.tr] - m_knotValues[rect.bl] + m_knotValues[rect.br];
+    Float b1 = knots[rect.tl].value;
+    Float b2 = knots[rect.tr].value - b1;
+    Float b3 = knots[rect.bl].value - b1;
+    Float b4 = b1 - knots[rect.tr].value - knots[rect.bl].value + knots[rect.br].value;
 
     int roots;
 
@@ -297,7 +239,7 @@ void Photon::choosePointInRect(Float& x, Float& y, const int rectNum, const Floa
             else {
 
                 x = 0.5;
-                fprintf(stderr, "x out of range, %f\t%f\n", x1, x2);
+                std::cerr << "x out of range, " << x1 << '\t' << x2 << std::endl;
             }
         }
     }
@@ -323,7 +265,7 @@ void Photon::choosePointInRect(Float& x, Float& y, const int rectNum, const Floa
             else {
 
                 y = 0.5;
-                fprintf(stderr, "y out of range, %f\t%f\n", y1, y2);
+                std::cerr << "y out of range, " << y1 << '\t' << y2 << std::endl;
             }
         }
     }

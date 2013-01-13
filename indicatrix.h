@@ -99,3 +99,38 @@ typedef Indicatrix<Optics::EBeam, Optics::EBeam> IndicatrixEE;
 typedef Indicatrix<Optics::EBeam, Optics::OBeam> IndicatrixEO;
 typedef Indicatrix<Optics::OBeam, Optics::EBeam> IndicatrixOE;
 typedef Indicatrix<Optics::OBeam, Optics::OBeam> IndicatrixOO;  //should always be equal to 0.
+
+
+//creates some indicatrix that has theta_i angle to director
+template<typename T>
+T createIndicatrix(const Float theta_i, Angle &a_i, Vector3 &nn)
+{
+    a_i = Angle(theta_i);
+    Vector3 s_i = createSomeDeviantVector(Optics::director, a_i).normalize();
+
+    //create coordinate system
+
+    Vector3 v2 = crossProduct(s_i, Optics::director).normalize();
+    Vector3 v3 = crossProduct(v2, s_i);
+
+//    Matrix3 mtx = invert(createTransformMatrix(s_i, v2, v3));
+//    nn  = mtx*Optics::director;
+
+//    return T(Vector3(1., 0., 0.), nn);
+
+    Matrix3 mtx = invert(createTransformMatrix(v2, v3, s_i));
+    nn  = mtx*Optics::director;
+
+    return T(Vector3(0., 0., 1.), nn);
+}
+
+
+template<typename T>
+T createIndicatrix(const Float theta_i)
+{
+    Angle a_i;
+    Vector3 nn;
+
+    return createIndicatrix<T>(theta_i, a_i, nn);
+}
+

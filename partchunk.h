@@ -25,7 +25,7 @@ public:
     virtual ~PartitionChunk();
 
     template <class T>
-    bool create(const Float minAngle, const Float maxAngle, const int iterations);
+    bool create(const Float minAngle, const Float maxAngle);
 
     bool load(FILE *file);
     bool save(FILE *file);
@@ -39,10 +39,9 @@ public:
 
     static const Float kEpsilon;
     static const int   kThetaDegree = 15;
-    static const int   kThetaSize   = (1 << kThetaDegree) + 1;    //1025
+    static const int   kThetaSize   = (1 << kThetaDegree) + 1;
     static const int   kPhiDegree   = 7;
-    static const int   kPhiSize     = (1 << kPhiDegree) + 1;      //1025
-
+    static const int   kPhiSize     = (1 << kPhiDegree) + 1;
 
     static const Float kThetaResolution;
     static const Float kPhiResolution;
@@ -64,12 +63,10 @@ private:
     void createRectsList();
 
     void cleanUp();
+    void normalize();
 
     Float m_minAngle;
     Float m_maxAngle;
-    int   m_iterations;
-
-    Float m_iterationStep; 
 
     Node*    m_root;
     Float**  m_data;             //knots
@@ -92,18 +89,13 @@ private:
 };
 
 template <class T>
-bool PartitionChunk::create(const Float minAngle, const Float maxAngle, const int iterations)
+bool PartitionChunk::create(const Float minAngle, const Float maxAngle)
 {
     m_minAngle   = minAngle;
     m_maxAngle   = maxAngle;
-    m_iterations = iterations;
-
-    m_iterationStep = (m_maxAngle - m_minAngle) / m_iterations;
-
 
     m_root = new Node(GreedRect(0,0, kThetaSize-1, kPhiSize-1));
 
-//    m_cellIntegrals = allocate2dArray<Float>(kThetaSize-1, kPhiSize-1);
     m_cellIntegrals = allocate2dArray<Float>(kPhiSize-1, kThetaSize-1);
 
     createPartitionTree<T>();
@@ -117,50 +109,31 @@ bool PartitionChunk::create(const Float minAngle, const Float maxAngle, const in
 template <class T>
 void PartitionChunk::createPartitionTree()
 {
-//    Float ** data = allocate2dArray<Float>(PartitionChunk::kThetaSize, PartitionChunk::kPhiSize);
     Float **data = allocate2dArray<Float>(kPhiSize, kThetaSize);
 
-    for (int k = 0; k < m_iterations; ++k) {
+    Float theta_i = 0.5*(m_minAngle + m_maxAngle);
+    T ind = createIndicatrix<T>(theta_i);
 
-        //angle between k_i and director
-        Angle   a_i = Angle(m_minAngle + k*m_iterationStep);
+    //calculate array values
 
-        //here we construct some k_i, that has a_i angle to director
-        Vector3 s_i = createSomeDeviantVector(Optics::director, a_i).normalize();
+    Float t, p;
 
-        //now we can create coordinate system
-        Vector3 v2 = crossProduct(s_i, Optics::director).normalize();
-        Vector3 v3 = crossProduct(s_i, v2).normalize();
+    for (int i = 0; i < kThetaSize; ++i) {
 
+        t = i*kThetaResolution;
 
-        //create matrix
-        Matrix3 mtx = createTransformMatrix(v2, v3, s_i);
+        for (int j = 0; j < kPhiSize; ++j) {
 
-        Vector3 nn = mtx*Optics::director;
-        Vector3 ss_i = Vector3(0., 0., 1.);
+            p = j*kPhiResolution;
 
-        T ind(ss_i, nn);
-
-        //calculate array values
-
-        Float t, p;
-
-        for (int i = 0; i < kThetaSize; ++i) {
-
-            t = i*kThetaResolution;
-
-            for (int j = 0; j < kPhiSize; ++j) {
-
-                p = j*kPhiResolution;
-
-                Vector3 ss_s = Vector3(sin(t)*cos(p), sin(t)*sin(p), cos(t));
-                data[j][i]  = ind(ss_s)*sin(t);
-            }
+            Vector3 ss_s = Vector3(sin(t)*cos(p), sin(t)*sin(p), cos(t));
+            data[j][i]  = ind(ss_s)*sin(t);
         }
-
-        setData(data, kThetaResolution * kPhiResolution);
-        refine();
     }
 
-    free2dArray(data);
+    setData(data, kThetaResolution * kPhiResolution);
+    refine();
+    normalize();
+
+    //free2dArray(data);
 }

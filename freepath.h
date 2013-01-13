@@ -53,10 +53,8 @@ protected:
 template <class T>
 void createFreePath(LinearInterpolation& li, const int kPoints = 400)
 {
-
     li.resize(kPoints);
     li.setRange(0., 0.5*M_PI);
-
 
     const Float kResolution = li.resolution();
 
@@ -64,19 +62,11 @@ void createFreePath(LinearInterpolation& li, const int kPoints = 400)
     for (int i = 1; i < kPoints; ++i) {
 
         Float theta_i = i*kResolution;
-        Angle   a_i   = Angle(theta_i);
-        Vector3 s_i   = createSomeDeviantVector(Optics::director, a_i).normalize();
+        Angle a_i;
+        Vector3 nn;
 
-        //create coordinate system
-
-        Vector3 v2 = crossProduct(s_i, Optics::director).normalize();
-        Vector3 v3 = crossProduct(v2, s_i);
-
-        Matrix3 mtx = invert(createTransformMatrix(s_i, v2, v3));
-        Vector3 nn = mtx*Optics::director;
-
-        Indicatrix<T, Optics::OBeam> indO = Indicatrix<T, Optics::OBeam>(Vector3(1., 0., 0.), nn);
-        Indicatrix<T, Optics::EBeam> indE = Indicatrix<T, Optics::EBeam>(Vector3(1., 0., 0.), nn);
+        Indicatrix<T, Optics::OBeam> indO = createIndicatrix<Indicatrix<T, Optics::OBeam> >(theta_i, a_i, nn);
+        Indicatrix<T, Optics::EBeam> indE = createIndicatrix<Indicatrix<T, Optics::EBeam> >(theta_i);
 
         freepath::Functor<T> functor(indO, indE, nn, a_i);
         Float integral = spherical::integral(functor);

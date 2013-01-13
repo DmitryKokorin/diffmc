@@ -14,6 +14,7 @@
 #include "indicatrix.h"
 #include "freepath.h"
 #include "optics.h"
+#include "distance.h"
 
 #include "diffmc.h"
 
@@ -49,7 +50,7 @@ DiffMCApp::DiffMCApp()
   , m_eChannelProb()
   , m_photonCnt(0)
   , m_saveRate(0)
-  , m_chunkParams()
+  , m_intervals()
   , m_dataBuff()
 {
 }
@@ -248,13 +249,7 @@ int DiffMCApp::run()
         return -1;
 
 
-    //partition
-    int numChunks = 100;
-    Float chunkStep = 0.5*M_PI / numChunks;
-
-    for (int i = 1; i <= numChunks; ++i)
-        m_chunkParams.push_back(ChunkParam(i*chunkStep, 20));
-
+    std::cerr << options_.oeProfileOptions << ' ' << Load << std::endl;
     Partition pOE, pEO, pEE;
     if (!preparePartition<IndicatrixOE>(pOE, "o-e", options_.oeProfileOptions, options_.oeProfileName))
         return -1;
@@ -269,7 +264,7 @@ int DiffMCApp::run()
     cerr << "scattering..." << endl;
     Photon::init(&m_oLength, &m_eLength, &pOE, &pEO, &pEE, &m_eChannelProb);
 
-    const int flushRate = 1;
+    const int flushRate = 100;
     m_saveRate  = omp_get_max_threads()*flushRate;
 
     const Float t = 0.5*M_PI; //angle with director

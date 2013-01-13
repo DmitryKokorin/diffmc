@@ -4,6 +4,8 @@
 #include <vector>
 
 #include "databuff.h"
+#include "interval.h"
+#include "distance.h"
 
 
 class DiffMCApp
@@ -78,12 +80,12 @@ private:
 
 
     template <typename T>
-    bool  prepareFreePath(LinearInterpolation &l, const char *name, const bool options, const std::string &fileName);
+    bool  prepareFreePath(LinearInterpolation &l, const char *name, const int options, const std::string &fileName);
 
     bool  prepareEChannelProb(LinearInterpolation& prob);
 
     template <typename T>
-    bool  preparePartition(Partition &p, const char *name, const bool options, const std::string &fileName);
+    bool  preparePartition(Partition &p, const char *name, const int options, const std::string &fileName);
 
 
     LinearInterpolation m_eLength;
@@ -95,10 +97,12 @@ private:
     int m_saveRate;
 
     //right region border and number of iterations for some partition chunk
-    typedef std::pair<Float, size_t>    ChunkParam;
-    typedef std::vector<ChunkParam>     ChunkParamsList;
+    //typedef std::pair<Float, size_t>    ChunkParam;
+    //typedef std::vector<ChunkParam>     ChunkParamsList;
+    typedef std::vector<Interval>  IntervalsContainer;
+    IntervalsContainer m_intervals;
 
-    ChunkParamsList    m_chunkParams;
+    //ChunkParamsList    m_chunkParams;
 
     DataBuff m_dataBuff;
 
@@ -109,7 +113,7 @@ private:
 };
 
 template <typename T>
-bool DiffMCApp::prepareFreePath(LinearInterpolation &l, const char *name, const bool options, const std::string &fileName)
+bool DiffMCApp::prepareFreePath(LinearInterpolation &l, const char *name, const int options, const std::string &fileName)
 {
     using namespace std;
 
@@ -147,7 +151,7 @@ bool DiffMCApp::prepareFreePath(LinearInterpolation &l, const char *name, const 
 }
 
 template <typename T>
-bool DiffMCApp::preparePartition(Partition &p, const char *name, const bool options, const std::string &fileName)
+bool DiffMCApp::preparePartition(Partition &p, const char *name, const int options, const std::string &fileName)
 {
     using namespace std;
 
@@ -164,14 +168,54 @@ bool DiffMCApp::preparePartition(Partition &p, const char *name, const bool opti
 
     if (options == Create || options == Save) {
 
+        cerr << "calculating profile intervals..." << endl;
+
+        Float left = 0.001;
+        Float right = 0.5* M_PI;
+        Float end = right;
+
+        const Float tolerance = 0.01;
+        //const Float tolerance = 0.1;
+
+        Float dist;
+        int i = 0;
+
+        m_intervals.push_back(Interval(0., left));
+
+        do {
+
+            right = end;
+
+            T ind_left = createIndicatrix<T>(left);
+
+            while (1) {
+
+                T ind_right  = createIndicatrix<T>(right);
+
+                dist = ::distance(ind_left, ind_right);
+
+                if (dist > tolerance)
+                    right = 0.5*(right + left);
+                else
+                    break;
+            }
+
+            m_intervals.push_back(Interval(left, right));
+            std::cout << i << " " << left << " " << right << std::endl;
+
+            left = right;
+            i++;
+        }
+        while (right != end);
+
+
         cerr << "calculating " << name << " profile data..." << endl;
 
-        const int chunksNum = m_chunkParams.size();
+        const int chunksNum = m_intervals.size();
         #pragma omp parallel for schedule(dynamic)
         for (int i = 0; i < chunksNum; ++i) {
 
-            p.addChunk<T>(i == 0 ? 0. : m_chunkParams[i-1].first,
-                    m_chunkParams[i].first, m_chunkParams[i].second);
+              p.addChunk<T>(m_intervals[i].left, m_intervals[i].right);
         }
     }
 

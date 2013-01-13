@@ -54,7 +54,7 @@ private:
     void createTransformToPartitionCoords(Matrix3& mtx, Vector3& nn, Angle& a_i);
 
     template <class T>
-    void calcPartitionValues(const Vector3& nn);
+    void calcPartitionValues();
 
     void choosePointInRect(Float& x, Float& y, const int rectIdx, const Float randX, const Float randY);
 

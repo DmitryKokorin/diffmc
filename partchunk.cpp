@@ -25,8 +25,6 @@ PartitionChunk::PartitionChunk() :
     m_knots(),
     m_minAngle(0.),
     m_maxAngle(0.),
-    m_iterations(0),
-    m_iterationStep(0.),
     m_root(NULL),
     m_data(NULL),
     m_cellIntegrals(NULL),
@@ -50,6 +48,12 @@ void PartitionChunk::cleanUp()
 
         free2dArray(m_cellIntegrals);
         m_cellIntegrals = NULL;
+    }
+
+    if (m_data) {
+
+        free2dArray(m_data);
+        m_data = NULL;
     }
 }
 
@@ -161,10 +165,10 @@ Float PartitionChunk::rectError(const GreedRect& rect)
     for (int i = rect.x1; i < rect.x2; ++i)
         for (int j = rect.y1; j < rect.y2; ++j) {
 
-            res +=  fabs(m_data[j][i]  -  (a*(rect.x2 - i)*(rect.y2 - j)
-                                         + b*(i - rect.x1)*(rect.y2 - j)
-                                         + c*(rect.x2 - i)*(j - rect.y1)
-                                         + d*(i - rect.x1)*(j - rect.y1)));
+            res +=  std::abs(m_data[j][i]  -  (a*(rect.x2 - i)*(rect.y2 - j)
+                                           + b*(i - rect.x1)*(rect.y2 - j)
+                                           + c*(rect.x2 - i)*(j - rect.y1)
+                                           + d*(i - rect.x1)*(j - rect.y1)));
         }
 
     return res*m_cellSquare;
@@ -173,7 +177,6 @@ Float PartitionChunk::rectError(const GreedRect& rect)
 
 void PartitionChunk::createRectsList()
 {
-//    Rect::s_knots = &m_knots;
     processTreeNode(m_root);
 }
 
@@ -184,21 +187,29 @@ void PartitionChunk::processTreeNode(Node* node)
         int  keys[4];
         int  indeces[4];
         Knot knots[4];
+        Float values[4];
 
-        keys[0] = node->rect.x1 + node->rect.y1*kThetaSize; //tl
-        keys[1] = node->rect.x2 + node->rect.y1*kThetaSize; //tr
-        keys[2] = node->rect.x1 + node->rect.y2*kThetaSize; //bl
-        keys[3] = node->rect.x2 + node->rect.y2*kThetaSize; //br
+        GreedRect &r = node->rect;
 
-        Float x1 = node->rect.x1 * kThetaResolution;
-        Float x2 = node->rect.x2 * kThetaResolution;
-        Float y1 = node->rect.y1 * kPhiResolution;
-        Float y2 = node->rect.y2 * kPhiResolution;
+        keys[0] = r.x1 + r.y1*kThetaSize; //tl
+        keys[1] = r.x2 + r.y1*kThetaSize; //tr
+        keys[2] = r.x1 + r.y2*kThetaSize; //bl
+        keys[3] = r.x2 + r.y2*kThetaSize; //br
 
-        knots[0] = Knot(x1, y1);
-        knots[1] = Knot(x2, y1);
-        knots[2] = Knot(x1, y2);
-        knots[3] = Knot(x2, y2);
+        Float x1 = r.x1 * kThetaResolution;
+        Float x2 = r.x2 * kThetaResolution;
+        Float y1 = r.y1 * kPhiResolution;
+        Float y2 = r.y2 * kPhiResolution;
+
+        values[0] = m_data[r.y1][r.x1];
+        values[1] = m_data[r.y1][r.x2];
+        values[2] = m_data[r.y2][r.x1];
+        values[3] = m_data[r.y2][r.x2];
+
+        knots[0] = Knot(x1, y1, values[0]);
+        knots[1] = Knot(x2, y1, values[1]);
+        knots[2] = Knot(x1, y2, values[2]);
+        knots[3] = Knot(x2, y2, values[3]);
 
         for (int i = 0; i < 4; ++i) {
 
@@ -241,15 +252,12 @@ bool PartitionChunk::load(FILE *file)
 
     for (int i = 0; i < knotsNumber; ++i) {
 
-        Float x, y;
-        if (!fscanf(file, "%le\t%le", &x, &y))
+        Float x, y, value;
+        if (!fscanf(file, "%le\t%le\t%le", &x, &y, &value))
             return false;
 
-        m_knots.push_back(Knot(x, y));
+        m_knots.push_back(Knot(x, y, value));
     }
-
-
-//    Rect::s_knots = &m_knots;
 
     unsigned long int rectsNumber, i;
 
@@ -285,7 +293,7 @@ bool PartitionChunk::save(FILE *file)
 
         for (i = m_knots.begin(); i != m_knots.end(); ++i) {
 
-            fprintf(file, "%.17e\t%.17e\n", (*i).x, (*i).y);
+            fprintf(file, "%.17e\t%.17e\t%.17e\n", i->x, i->y, i->value);
         }
     }
 
@@ -297,10 +305,33 @@ bool PartitionChunk::save(FILE *file)
 
         for (i = m_rects.begin(); i != m_rects.end(); ++i) {
 
-            fprintf(file, "%d\t%d\t%d\t%d\n", (*i).tl, (*i).tr, (*i).bl, (*i).br);
+            fprintf(file, "%d\t%d\t%d\t%d\n", i->tl, i->tr, i->bl, i->br);
         }
     }
 
-
     return true;
+}
+
+void PartitionChunk::normalize()
+{
+    //calculate full integral
+    Float integral = 0.;
+
+    RectsVector::iterator i = m_rects.begin();
+    for (; i != m_rects.end(); ++i) {
+
+        Float rectIntegral = 0.25* (m_knots[i->tl].value +
+                                    m_knots[i->tr].value +
+                                    m_knots[i->bl].value +
+                                    m_knots[i->br].value) *
+                            i->square;
+
+        integral += rectIntegral;
+    }
+
+    KnotsVector::iterator j = m_knots.begin();
+    for (; j != m_knots.end(); ++j) {
+
+        j->value /= integral;
+    }
 }

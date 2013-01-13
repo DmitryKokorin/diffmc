@@ -5,18 +5,21 @@
 
 struct Knot
 {
-    Knot(const Float _x, const Float _y)
+    Knot(const Float _x, const Float _y, const Float _value)
         : x(_x)
         , y(_y)
+        , value(_value)
     {};
 
     Knot()
-        : x(0.)
-        , y(0.)
+        : x()
+        , y()
+        , value()
     {};
 
     Float x;
     Float y;
+    Float value;
 };
 
 struct Rect

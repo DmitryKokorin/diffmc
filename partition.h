@@ -22,7 +22,7 @@ public:
     bool save(const std::string& name);
 
     template <class T>
-    PartitionChunk* addChunk(const Float kMinAngle, const Float kMaxAngle, const int kIterations);
+    PartitionChunk* addChunk(const Float kMinAngle, const Float kMaxAngle);
 
     void addChunk(PartitionChunk *chunk);
     PartitionChunk* getChunk(const Float kAngle);
@@ -42,12 +42,12 @@ private:
 };
 
 template <class T>
-PartitionChunk* Partition::addChunk(const Float kMinAngle, const Float kMaxAngle, const int kIterations)
+PartitionChunk* Partition::addChunk(const Float kMinAngle, const Float kMaxAngle)
 {
     PartitionChunk *chunk = new PartitionChunk();
 
-    fprintf(stderr, "creating partition chunk:\nangle: %f - %f\titerations: %d...\n", kMinAngle, kMaxAngle, kIterations);
-    chunk->create<T>(kMinAngle, kMaxAngle, kIterations);
+    fprintf(stderr, "creating partition chunk:\nangle: %f - %f...\n", kMinAngle, kMaxAngle);
+    chunk->create<T>(kMinAngle, kMaxAngle);
     fprintf(stderr, "done, %lu rects\n", (unsigned long int)chunk->getRectsCount());
 
     #pragma omp critical
