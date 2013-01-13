@@ -113,15 +113,15 @@ T createIndicatrix(const Float theta_i, Angle &a_i, Vector3 &nn)
     Vector3 v2 = crossProduct(s_i, Optics::director).normalize();
     Vector3 v3 = crossProduct(v2, s_i);
 
-//    Matrix3 mtx = invert(createTransformMatrix(s_i, v2, v3));
-//    nn  = mtx*Optics::director;
-
-//    return T(Vector3(1., 0., 0.), nn);
-
-    Matrix3 mtx = invert(createTransformMatrix(v2, v3, s_i));
+    Matrix3 mtx = invert(createTransformMatrix(s_i, v2, v3));
     nn  = mtx*Optics::director;
 
-    return T(Vector3(0., 0., 1.), nn);
+    return T(Vector3(1., 0., 0.), nn);
+
+//    Matrix3 mtx = invert(createTransformMatrix(v2, v3, s_i));
+//    nn  = mtx*Optics::director;
+
+//    return T(Vector3(0., 0., 1.), nn);
 }
 
 
