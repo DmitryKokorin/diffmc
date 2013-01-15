@@ -19,8 +19,6 @@ class PartitionChunk;
 class Angle;
 
 
-typedef std::vector<Float> ValuesVector;
-
 typedef std::tr1::mt19937 RngEngine;
 
 
@@ -45,16 +43,12 @@ public:
     Vector3   s_i;  //normalized wave vector
 
     int   scatterings;
-    Float fullIntegral;
     int   channel;
     Float time;
 
 private:
 
     void createTransformToPartitionCoords(Matrix3& mtx, Vector3& nn, Angle& a_i);
-
-    template <class T>
-    void calcPartitionValues();
 
     void choosePointInRect(Float& x, Float& y, const int rectIdx, const Float randX, const Float randY);
 
@@ -83,9 +77,6 @@ private:
     LinearInterpolation&    eChannelProb;
 
     PartitionChunk *m_chunk; //current chunk
-
-    ValuesVector    m_knotValues;
-    ValuesVector    m_rectValues;
 
     //disable copying
     Photon(const Photon&);

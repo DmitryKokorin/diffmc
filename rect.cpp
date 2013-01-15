@@ -14,7 +14,6 @@ Rect::Rect(const int _tl,
 {
     KnotsVector &k = *knots;
 
-
     x1 = k[tl].x;
     x2 = k[tr].x;
     y1 = k[tl].y;

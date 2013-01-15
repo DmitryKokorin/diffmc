@@ -21,6 +21,8 @@ class PartitionChunk
 {
 public:
 
+    typedef std::vector<Float> ValuesVector;
+
     PartitionChunk();
     virtual ~PartitionChunk();
 
@@ -46,9 +48,9 @@ public:
     static const Float kThetaResolution;
     static const Float kPhiResolution;
 
-
-    RectsVector m_rects;
-    KnotsVector m_knots;
+    inline RectsVector &rects() {return m_rects;}
+    inline KnotsVector &knots() {return m_knots;}
+    inline ValuesVector &values() {return m_values;}
 
 
 private:
@@ -64,6 +66,12 @@ private:
 
     void cleanUp();
     void normalize();
+    void fillValues();
+
+    RectsVector m_rects;
+    KnotsVector m_knots;
+
+    std::vector<Float> m_values;  //integrals upp to the n-th rect
 
     Float m_minAngle;
     Float m_maxAngle;
@@ -102,6 +110,7 @@ bool PartitionChunk::create(const Float minAngle, const Float maxAngle)
     createRectsList();
 
     cleanUp();
+    fillValues();
 
     return true;
 }

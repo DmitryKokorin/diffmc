@@ -279,7 +279,6 @@ int DiffMCApp::run()
         RngEngine rng_engine;
         rng_engine.seed(options_.seed + kSeedIncrement*omp_get_thread_num());
 
-        bool flush = false;
         int  scatteredCount = 0;
         DataBuff buff(options_.points, options_.maxTime);
 
@@ -288,14 +287,6 @@ int DiffMCApp::run()
 
             Photon ph(rng_engine, initVector, Optics::ECHANNEL);
             size_t timeIdx = 0;
-
-            if (flush) {
-
-                flush = false;
-                scatteredCount = 0;
-                buff.clear();
-            }
-
 
             while ((ph.scatterings < options_.maxScatterings) && (ph.time <= options_.maxTime)) {
 
@@ -307,15 +298,11 @@ int DiffMCApp::run()
 
             }
 
-            if (++scatteredCount == flushRate) {
-
-                flush = true;
+            if (++scatteredCount == flushRate)
                 flushBuffers(scatteredCount, buff);
-            }
         }
 
-        if (options_.maxPhotons % flushRate)
-            flushBuffers(scatteredCount, buff);
+        flushBuffers(scatteredCount, buff);
     }
 
     m_dataBuff.average();
@@ -425,7 +412,7 @@ bool DiffMCApp::prepareEChannelProb(LinearInterpolation& l)
     return true;
 }
 
-void DiffMCApp::flushBuffers(const int scatteredCount, const DataBuff& buff)
+void DiffMCApp::flushBuffers(int &scatteredCount, DataBuff &buff)
 {
     #pragma omp critical
     {
@@ -437,4 +424,7 @@ void DiffMCApp::flushBuffers(const int scatteredCount, const DataBuff& buff)
         if (0 == m_photonCnt % m_saveRate)
             output();
     }
+
+    scatteredCount = 0.;
+    buff.clear();
 }

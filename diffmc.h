@@ -74,7 +74,7 @@ private:
 
     Options options_;
 
-    void flushBuffers(const int scatteredCount, const DataBuff& buff);
+    void flushBuffers(int &scatteredCount, DataBuff &buff);
     void output();
     size_t processScattering(const Photon& ph, DataBuff& buff, size_t idx);
 
@@ -172,42 +172,55 @@ bool DiffMCApp::preparePartition(Partition &p, const char *name, const int optio
 
         Float left = 0.001;
         Float right = 0.5* M_PI;
-        Float end = right;
 
         const Float tolerance = 0.01;
-        //const Float tolerance = 0.1;
 
         Float dist;
         int i = 0;
 
         m_intervals.push_back(Interval(0., left));
+        int num_threads = omp_get_max_threads();
 
-        do {
+        #pragma omp parallel for
+        for (int j = 0; j < num_threads; ++j) {
 
-            right = end;
+            Float local_left = left + j/(Float)num_threads*(right-left);
+            Float local_right = left + (j+1)/(Float)num_threads*(right-left);
+            Float local_end = local_right;
 
-            T ind_left = createIndicatrix<T>(left);
+            do {
 
-            while (1) {
+                local_right = local_end;
 
-                T ind_right  = createIndicatrix<T>(right);
+                T ind_left = createIndicatrix<T>(local_left);
 
-                dist = ::distance(ind_left, ind_right);
+                while (1) {
 
-                if (dist > tolerance)
-                    right = 0.5*(right + left);
-                else
-                    break;
+                    T ind_right  = createIndicatrix<T>(local_right);
+
+                    dist = ::distance(ind_left, ind_right);
+
+                    if (dist > tolerance)
+                        local_right = 0.5*(local_right + local_left);
+                    else
+                        break;
+                }
+
+                #pragma omp critical
+                {
+                    m_intervals.push_back(Interval(local_left, local_right));
+                    std::cout << i << " " << local_left << " " << local_right << std::endl;
+
+                    i++;
+                }
+
+                local_left = local_right;
+
             }
-
-            m_intervals.push_back(Interval(left, right));
-            std::cout << i << " " << left << " " << right << std::endl;
-
-            left = right;
-            i++;
+            while (local_right != local_end);
         }
-        while (right != end);
 
+        std::sort(m_intervals.begin(), m_intervals.end());
 
         cerr << "calculating " << name << " profile data..." << endl;
 

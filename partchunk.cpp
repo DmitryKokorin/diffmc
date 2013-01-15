@@ -23,6 +23,7 @@ const Float PartitionChunk::kPhiResolution   = M_PI / PartitionChunk::kPhiSize;
 PartitionChunk::PartitionChunk() :
     m_rects(),
     m_knots(),
+    m_values(),
     m_minAngle(0.),
     m_maxAngle(0.),
     m_root(NULL),
@@ -275,6 +276,9 @@ bool PartitionChunk::load(FILE *file)
         m_rects.push_back(Rect(tl, tr, bl, br, &m_knots));
     }
 
+    normalize();
+    fillValues();
+
     fprintf(stderr, "chunk loaded: %e -- %e\t%lu\n", m_minAngle, m_maxAngle, (unsigned long int)m_rects.size());
     return true;
 }
@@ -333,5 +337,27 @@ void PartitionChunk::normalize()
     for (; j != m_knots.end(); ++j) {
 
         j->value /= integral;
+    }
+}
+
+void PartitionChunk::fillValues()
+{
+    RectsVector::iterator i;
+    Float value = 0.;
+
+    m_values.clear();
+    m_values.reserve(m_rects.size());
+
+    for (i = m_rects.begin(); i != m_rects.end(); ++i) {
+
+        Float rectIntegral = 0.25* (m_knots[i->tl].value +
+                                    m_knots[i->tr].value +
+                                    m_knots[i->bl].value +
+                                    m_knots[i->br].value) *
+                            i->square;
+
+        value += rectIntegral;
+
+        m_values.push_back(value);
     }
 }

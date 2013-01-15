@@ -46,7 +46,6 @@ Photon::Photon(RngEngine& rng_engine_, const Vector3& s, const int channel_) :
     pos(0.,0.,0.),
     s_i(s),
     scatterings(0),
-    fullIntegral(0.),
     channel(channel_),
     time(0),
     rng_engine(rng_engine_),
@@ -56,14 +55,8 @@ Photon::Photon(RngEngine& rng_engine_, const Vector3& s, const int channel_) :
     eoPartition(*s_eoPartition),
     eePartition(*s_eePartition),
     eChannelProb(*s_eChannelProb),
-    m_chunk(NULL),
-    m_knotValues(),
-    m_rectValues()
+    m_chunk(NULL)
 {
-    m_knotValues.reserve(std::max(s_oePartition->getMaxKnotsCount(),
-                         std::max(s_eoPartition->getMaxKnotsCount(), s_eePartition->getMaxKnotsCount())));
-    m_rectValues.reserve(std::max(s_oePartition->getMaxRectsCount(),
-                         std::max(s_eoPartition->getMaxRectsCount(), s_eePartition->getMaxRectsCount())));
 }
 
 
@@ -107,36 +100,26 @@ void Photon::scatter()
 
         newChannel = Optics::ECHANNEL;
         m_chunk = eoPartition.getChunk(a_i.theta);
-        calcPartitionValues<IndicatrixOE>();
     }
     else {
 
         newChannel = randChannel > eChannelProb(symmetrizeTheta(Angle(s_i, Optics::director).theta)) ?
             Optics::OCHANNEL : Optics::ECHANNEL;
 
-        if (Optics::OCHANNEL == newChannel) {
-
-            m_chunk = eoPartition.getChunk(a_i.theta);
-            calcPartitionValues<IndicatrixEO>();
-        }
-        else {
-
-            m_chunk = eePartition.getChunk(a_i.theta);
-            calcPartitionValues<IndicatrixEE>();
-        }
+        m_chunk = Optics::OCHANNEL == newChannel ? eoPartition.getChunk(a_i.theta) : eePartition.getChunk(a_i.theta);
     }
 
-    //normalization
-    randRect    *= fullIntegral;
-
+    typedef PartitionChunk::ValuesVector ValuesVector;
+    const ValuesVector &values = m_chunk->values();
     size_t rectIdx = 0;
-    std::vector<Float>::const_iterator i = std::lower_bound(m_rectValues.begin(), m_rectValues.end(), randRect);
+    ValuesVector::const_iterator i = std::lower_bound(values.begin(), values.end(), randRect);
 
+    if (values.end() == i) {
 
-    if (m_rectValues.end() == i)
-        std::cerr << "rect not found!" << std::endl;
+        std::cerr << "rect not found!" << randRect << ' ' << values.front() << ' '<< values.back() << std::endl;
+    }
     else
-        rectIdx = i - m_rectValues.begin();
+        rectIdx = i - values.begin();
 
     //adjust point
     Float p, t;
@@ -178,38 +161,10 @@ void Photon::createTransformToPartitionCoords(Matrix3& mtx, Vector3& nn, Angle& 
     nn = mtx*nn;                            //director in s_i -based coordinate system
 }
 
-template <class T>
-void Photon::calcPartitionValues()
-{
-    KnotsVector& knots = m_chunk->m_knots;
-
-    {
-        RectsVector& rects = m_chunk->m_rects;
-
-        RectsVector::iterator i;
-        fullIntegral = 0.;
-
-        m_rectValues.clear();
-
-        for (i = rects.begin(); i != rects.end(); ++i) {
-
-            Float rectIntegral = 0.25* (knots[i->tl].value +
-                                        knots[i->tr].value +
-                                        knots[i->bl].value +
-                                        knots[i->br].value) *
-                                i->square;
-
-            fullIntegral += rectIntegral;
-
-            m_rectValues.push_back(fullIntegral);
-        }
-    }
-}
-
 void Photon::choosePointInRect(Float& x, Float& y, const int rectNum, const Float randX, const Float randY)
 {
-    Rect& rect = m_chunk->m_rects[rectNum];
-    KnotsVector &knots = m_chunk->m_knots;
+    Rect& rect = m_chunk->rects()[rectNum];
+    KnotsVector &knots = m_chunk->knots();
 
     Float b1 = knots[rect.tl].value;
     Float b2 = knots[rect.tr].value - b1;
@@ -273,6 +228,6 @@ void Photon::choosePointInRect(Float& x, Float& y, const int rectNum, const Floa
     x *= rect.width;
     y *= rect.height;
 
-    x += m_chunk->m_knots[rect.tl].x;
-    y += m_chunk->m_knots[rect.tl].y;
+    x += m_chunk->knots()[rect.tl].x;
+    y += m_chunk->knots()[rect.tl].y;
 }
