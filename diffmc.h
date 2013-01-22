@@ -99,8 +99,6 @@ private:
     //right region border and number of iterations for some partition chunk
     //typedef std::pair<Float, size_t>    ChunkParam;
     //typedef std::vector<ChunkParam>     ChunkParamsList;
-    typedef std::vector<Interval>  IntervalsContainer;
-    IntervalsContainer m_intervals;
 
     //ChunkParamsList    m_chunkParams;
 
@@ -168,18 +166,25 @@ bool DiffMCApp::preparePartition(Partition &p, const char *name, const int optio
 
     if (options == Create || options == Save) {
 
+        typedef std::vector<Interval>  IntervalsContainer;
+        IntervalsContainer intervals;
+
+
         cerr << "calculating profile intervals..." << endl;
 
-        Float left = 0.001;
-        Float right = 0.5* M_PI;
+        Float left = 0.01;
+        Float right = 0.5* M_PI /*- 0.01*/;
 
-        const Float tolerance = 0.01;
+        const Float tolerance = 0.1;
+        //const Float tolerance = 0.01;
 
         Float dist;
         int i = 0;
 
-        m_intervals.push_back(Interval(0., left));
+        intervals.push_back(Interval(0., left));
         int num_threads = omp_get_max_threads();
+
+        //int num_threads = 1;
 
         #pragma omp parallel for
         for (int j = 0; j < num_threads; ++j) {
@@ -192,6 +197,9 @@ bool DiffMCApp::preparePartition(Partition &p, const char *name, const int optio
 
                 local_right = local_end;
 
+                //std::cerr << local_left << ' ' << local_right << std::endl;
+
+
                 T ind_left = createIndicatrix<T>(local_left);
 
                 while (1) {
@@ -199,16 +207,18 @@ bool DiffMCApp::preparePartition(Partition &p, const char *name, const int optio
                     T ind_right  = createIndicatrix<T>(local_right);
 
                     dist = ::distance(ind_left, ind_right);
+                    //std::cerr << "dist=" << dist << std::endl;
 
                     if (dist > tolerance)
                         local_right = 0.5*(local_right + local_left);
                     else
                         break;
-                }
+
+                                    }
 
                 #pragma omp critical
                 {
-                    m_intervals.push_back(Interval(local_left, local_right));
+                    intervals.push_back(Interval(local_left, local_right));
                     std::cout << i << " " << local_left << " " << local_right << std::endl;
 
                     i++;
@@ -220,15 +230,17 @@ bool DiffMCApp::preparePartition(Partition &p, const char *name, const int optio
             while (local_right != local_end);
         }
 
-        std::sort(m_intervals.begin(), m_intervals.end());
+        //intervals.push_back(Interval(right, 0.5*M_PI));
+
+        std::sort(intervals.begin(), intervals.end());
 
         cerr << "calculating " << name << " profile data..." << endl;
 
-        const int chunksNum = m_intervals.size();
+        const int chunksNum = intervals.size();
         #pragma omp parallel for schedule(dynamic)
         for (int i = 0; i < chunksNum; ++i) {
 
-              p.addChunk<T>(m_intervals[i].left, m_intervals[i].right);
+              p.addChunk<T>(intervals[i].left, intervals[i].right);
         }
     }
 

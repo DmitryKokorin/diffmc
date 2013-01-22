@@ -1,4 +1,5 @@
 #include "node.h"
+#include <iostream>
 
 #if !defined NULL
 #define NULL 0
@@ -37,6 +38,8 @@ bool Node::splitX()
     pChild1->pParent = this;
     pChild2->pParent = this;
 
+    //std::cerr << "split x" << std::endl;
+
     return true;
 }
 
@@ -49,6 +52,9 @@ bool Node::splitY()
     pChild2 = new Node(rect.bottomHalf());
     pChild1->pParent = this;
     pChild2->pParent = this;
+
+    //std::cerr << "split y" << std::endl;
+
 
     return true;
 }

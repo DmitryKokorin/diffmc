@@ -47,7 +47,7 @@ public:
         Float sint_s = sin(theta);
 
         PhiFunctor<T> functor(func, sint_s, cost_s);
-        return integrate::adaptive(functor, 0., 2.*M_PI, 1.0e-10);
+        return integrate::adaptive(functor, 0., 2.*M_PI);
     }
 
 protected:
@@ -59,7 +59,9 @@ template <class T>
 Float integral(T &func_)
 {
     ThetaFunctor<T> thetaFunctor(func_);
-    return integrate::adaptive(thetaFunctor, 0., M_PI, 1.0e-10);
+    Float res = integrate::adaptive(thetaFunctor, 0., M_PI);
+    //std::cerr << res << std::endl;
+    return res;
 }
 
 }

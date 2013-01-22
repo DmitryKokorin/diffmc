@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <iostream>
 
 #include "common.h"
 #include "node.h"
@@ -40,9 +41,9 @@ public:
     inline bool  isAngleInRange(const Float angle) const { return angle > m_minAngle && angle <= m_maxAngle;}
 
     static const Float kEpsilon;
-    static const int   kThetaDegree = 15;
+    static const int   kThetaDegree = 17;
     static const int   kThetaSize   = (1 << kThetaDegree) + 1;
-    static const int   kPhiDegree   = 7;
+    static const int   kPhiDegree   = 9;
     static const int   kPhiSize     = (1 << kPhiDegree) + 1;
 
     static const Float kThetaResolution;
@@ -121,7 +122,22 @@ void PartitionChunk::createPartitionTree()
     Float **data = allocate2dArray<Float>(kPhiSize, kThetaSize);
 
     Float theta_i = 0.5*(m_minAngle + m_maxAngle);
-    T ind = createIndicatrix<T>(theta_i);
+    //T ind = createIndicatrix<T>(theta_i);
+    //
+    Angle   a_i = Angle(theta_i);
+    Vector3 s_i = createSomeDeviantVector(Optics::director, a_i).normalize();
+
+    //create coordinate system
+
+    Vector3 v2 = crossProduct(s_i, Optics::director).normalize();
+    Vector3 v3 = crossProduct(s_i, v2).normalize();
+
+
+    Matrix3 mtx = createTransformMatrix(v2, v3, s_i);
+    Vector3 nn  = mtx*Optics::director;
+
+    T ind(Vector3(0., 0., 1.), nn);
+
 
     //calculate array values
 
@@ -135,8 +151,13 @@ void PartitionChunk::createPartitionTree()
 
             p = j*kPhiResolution;
 
+            //std::cerr << t << ' ' << p << std::endl;
+
             Vector3 ss_s = Vector3(sin(t)*cos(p), sin(t)*sin(p), cos(t));
             data[j][i]  = ind(ss_s)*sin(t);
+
+            //if (data[j][i] != 0.)
+            //    std::cerr << data[j][i] << std::endl;
         }
     }
 

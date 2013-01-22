@@ -21,7 +21,7 @@ public:
       , func2(func2_)
     {}
 
-    Float operator()(const Vector3 s)
+    Float operator()(const Vector3 &s)
     {
         return std::abs(func1(s)/f1_norm - func2(s)/f2_norm);
     }

@@ -50,7 +50,6 @@ DiffMCApp::DiffMCApp()
   , m_eChannelProb()
   , m_photonCnt(0)
   , m_saveRate(0)
-  , m_intervals()
   , m_dataBuff()
 {
 }
@@ -264,7 +263,7 @@ int DiffMCApp::run()
     cerr << "scattering..." << endl;
     Photon::init(&m_oLength, &m_eLength, &pOE, &pEO, &pEE, &m_eChannelProb);
 
-    const int flushRate = 100;
+    const int flushRate = 1000;
     m_saveRate  = omp_get_max_threads()*flushRate;
 
     const Float t = 0.5*M_PI; //angle with director

@@ -1,6 +1,7 @@
 #include "mathcompat.h"
 
 #include <cstdio>
+#include <iostream>
 
 #include "mathcompat.h"
 #include "common.h"
@@ -84,6 +85,8 @@ void PartitionChunk::refineNode(Node* node)
         Float nodeIntegral    = integral(node->rect);
         Float rectMaxError    = nodeIntegral*kEpsilon;
 
+        //std::cerr << "nodeIntegral " << nodeIntegral << std::endl;
+
         if (node->rect.canSplitX() && node->rect.canSplitY()) {
 
             Float xSplitError = rectError(node->rect.leftHalf()) +
@@ -92,6 +95,7 @@ void PartitionChunk::refineNode(Node* node)
             Float ySplitError = rectError(node->rect.topHalf()) +
                                 rectError(node->rect.bottomHalf());
 
+            //std::cerr << "xSplitError " << xSplitError << "ySplitError " << ySplitError << std::endl;
 
             if ((xSplitError > rectMaxError) && (xSplitError >= ySplitError)) {
 
