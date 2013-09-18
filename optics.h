@@ -5,6 +5,9 @@
 #include "angle.h"
 #include "vector3.h"
 
+#define TEST 1
+#define EE_ONLY 1
+
 
 namespace Optics {
 
@@ -14,6 +17,10 @@ extern const Vector3 director;         //vector of director
 
 extern const Float eps_par;
 extern const Float eps_perp;
+extern const Float eps_par2;
+extern const Float eps_perp2;
+extern const Float eps_perp_eps_par;
+extern const Float eps_par_eps_perp2;
 extern const Float eps_a;
 extern const Float _no;
 
@@ -39,6 +46,10 @@ extern const Float H;
 extern const Float Hi_alpha;
 
 extern const Float c;
+
+#if TEST
+extern const Float la;
+#endif
 
 //precalculated constants
 
@@ -88,12 +99,51 @@ public:
     }
 };
 
-
 class EBeam {
 public:
 
     static const int channel = ECHANNEL;
 
+#if !defined TEST
+
+    //refraction index
+    static inline Float n(const Angle& a)
+    {
+        return sqrt(eps_perp_eps_par / (eps_perp + eps_a*a.cos2theta));
+    }
+
+    static inline Vector3 k(const Vector3& direction, const Angle& a)
+    {
+        Float nn = n(a);
+        return Vector3(direction).normalize()*nn;
+    }
+
+    static inline Float cosd(const Angle& a)
+    {
+        return (eps_perp*a.sin2theta + eps_par*a.cos2theta) /
+                sqrt(eps_perp2*a.sin2theta + eps_par2*a.cos2theta);
+    }
+
+    static inline Float f2(const Angle& a)
+    {
+        return (eps_perp*a.sin2theta + eps_par*a.cos2theta) *
+               (eps_perp2*a.sin2theta + eps_par2*a.cos2theta) /
+               (eps_par_eps_perp2);
+    }
+
+    //polarization vector
+    static inline Vector3 e(const Vector3& s, const Vector3& director_, const Angle& a) __attribute__((always_inline))
+    {
+        if (std::abs(a.sintheta) > kMachineEpsilon) {
+
+            return (s*eps_par*a.costheta - director_*(eps_par*a.cos2theta + eps_perp*a.sin2theta)).normalize();
+        }
+        else { //along the optical axis, so we use the expression for the ordinary beam polarization
+
+            return Optics::OBeam::e(s, director_, a);
+        }
+    }
+/*
     //refraction index
     static inline Float n(const Angle& a)
     {
@@ -130,7 +180,36 @@ public:
 
             return Optics::OBeam::e(s, director_, a);
         }
+    }*/
+#else
+
+    static inline Float n(const Angle& /*a*/)
+    {
+        return _no;
     }
+
+    static inline Vector3 k(const Vector3& direction, const Angle& a)
+    {
+        return Vector3(direction).normalize()*n(a);
+    }
+
+    static inline Float cosd(const Angle& /*a*/)
+    {
+        return 1.0;
+    }
+
+    static inline Float f2(const Angle& /*a*/)
+    {
+        return 1.0;
+    }
+
+    static inline Vector3 e(const Vector3& s, const Vector3& director_, const Angle& /*a*/)
+    {
+        return crossProduct(s, director_).normalize();
+    }
+
+#endif
+
 };
 
 

@@ -1,19 +1,13 @@
 #include "node.h"
 #include <iostream>
 
-#if !defined NULL
-#define NULL 0
-#endif
 
 
-///////////////////////////////////////////////////////////////////////////////
-
-
-Node::Node(const GreedRect& rect_) :
-    rect(rect_),
-    pParent(NULL),
-    pChild1(NULL),
-    pChild2(NULL)
+Node::Node(const BilinearInterpolation &_interpolation) :
+    interpolation(_interpolation),
+    pParent(0),
+    pChild1(0),
+    pChild2(0)
 {
 }
 
@@ -28,34 +22,11 @@ bool Node::isLeaf() const
     return (NULL == pChild1) && (NULL == pChild2); 
 }
 
-bool Node::splitX() 
+void Node::split(const BilinearInterpolation &bi1,
+                 const BilinearInterpolation &bi2)
 {
-    if (!rect.canSplitX())
-        return false;
-
-    pChild1 = new Node(rect.leftHalf());
-    pChild2 = new Node(rect.rightHalf());
+    pChild1 = new Node(bi1);
+    pChild2 = new Node(bi2);
     pChild1->pParent = this;
     pChild2->pParent = this;
-
-    //std::cerr << "split x" << std::endl;
-
-    return true;
 }
-
-bool Node::splitY() 
-{
-    if (!rect.canSplitY())
-        return false;
-
-    pChild1 = new Node(rect.topHalf());
-    pChild2 = new Node(rect.bottomHalf());
-    pChild1->pParent = this;
-    pChild2->pParent = this;
-
-    //std::cerr << "split y" << std::endl;
-
-
-    return true;
-}
-

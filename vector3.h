@@ -40,7 +40,7 @@ public:
 
     inline Float norm() const;
     inline void clear();
-    inline Vector3& normalize();
+    inline Vector3& normalize() __attribute__((always_inline));
 
     friend std::ostream &operator<<(std::ostream &stream, const Vector3 &v)
     {

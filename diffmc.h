@@ -66,15 +66,15 @@ private:
         std::string eeProbabilityName;
 
         int     seed;
-        int     maxPhotons;
-        int     maxScatterings;
+        int64_t maxPhotons;
+        int64_t maxScatterings;
         Float   maxTime;
         int     points;
     };
 
     Options options_;
 
-    void flushBuffers(int &scatteredCount, DataBuff &buff);
+    void flushBuffers(int64_t &scatteredCount, DataBuff &buff);
     void output();
     size_t processScattering(const Photon& ph, DataBuff& buff, size_t idx);
 
@@ -93,14 +93,8 @@ private:
 
     LinearInterpolation m_eChannelProb;
 
-    int m_photonCnt;
-    int m_saveRate;
-
-    //right region border and number of iterations for some partition chunk
-    //typedef std::pair<Float, size_t>    ChunkParam;
-    //typedef std::vector<ChunkParam>     ChunkParamsList;
-
-    //ChunkParamsList    m_chunkParams;
+    int64_t m_photonCnt;
+    int64_t m_saveRate;
 
     DataBuff m_dataBuff;
 
@@ -173,18 +167,22 @@ bool DiffMCApp::preparePartition(Partition &p, const char *name, const int optio
         cerr << "calculating profile intervals..." << endl;
 
         Float left = 0.01;
-        Float right = 0.5* M_PI /*- 0.01*/;
+        Float right = 0.5* M_PI;
 
-        const Float tolerance = 0.1;
-        //const Float tolerance = 0.01;
+        //const Float tolerance = 0.1;
+        const Float tolerance = 0.01;
+        //const Float tolerance = 0.001;
 
         Float dist;
         int i = 0;
 
         intervals.push_back(Interval(0., left));
-        int num_threads = omp_get_max_threads();
 
-        //int num_threads = 1;
+#if !defined TEST
+        int num_threads = omp_get_max_threads();
+#else
+        int num_threads = 1;
+#endif
 
         #pragma omp parallel for
         for (int j = 0; j < num_threads; ++j) {
@@ -206,7 +204,7 @@ bool DiffMCApp::preparePartition(Partition &p, const char *name, const int optio
 
                     T ind_right  = createIndicatrix<T>(local_right);
 
-                    dist = ::distance(ind_left, ind_right);
+                    dist = ::distance(ind_left, ind_right, 0.01*tolerance);
                     //std::cerr << "dist=" << dist << std::endl;
 
                     if (dist > tolerance)
@@ -230,14 +228,14 @@ bool DiffMCApp::preparePartition(Partition &p, const char *name, const int optio
             while (local_right != local_end);
         }
 
-        //intervals.push_back(Interval(right, 0.5*M_PI));
-
         std::sort(intervals.begin(), intervals.end());
 
         cerr << "calculating " << name << " profile data..." << endl;
 
         const int chunksNum = intervals.size();
+//#if !defined TEST
         #pragma omp parallel for schedule(dynamic)
+//#endif
         for (int i = 0; i < chunksNum; ++i) {
 
               p.addChunk<T>(intervals[i].left, intervals[i].right);

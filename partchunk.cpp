@@ -16,10 +16,16 @@
 // phi   - y
 //
 
+//const Float PartitionChunk::kEpsilon = 0.01;
+//const Float PartitionChunk::kEpsilon = 0.01;
 const Float PartitionChunk::kEpsilon = 0.01;
-const Float PartitionChunk::kThetaResolution = M_PI / PartitionChunk::kThetaSize;
-const Float PartitionChunk::kPhiResolution   = M_PI / PartitionChunk::kPhiSize;
 
+const Float PartitionChunk::kMinX = -1.;
+const Float PartitionChunk::kMaxX = 1.;
+const Float PartitionChunk::kMinY = 0.;
+const Float PartitionChunk::kMaxY = M_PI;
+
+const Float PartitionChunk::kIntegralEpsilon = 1e-10;
 
 PartitionChunk::PartitionChunk() :
     m_rects(),
@@ -28,11 +34,11 @@ PartitionChunk::PartitionChunk() :
     m_minAngle(0.),
     m_maxAngle(0.),
     m_root(NULL),
-    m_data(NULL),
-    m_cellIntegrals(NULL),
     m_knotsMap(),
-    m_cellSquare(0.),
-    m_fullIntegral(0.)
+    m_infos(),
+    m_fullIntegral(0.),
+    m_rectsCount(0)
+
 {
 }
 
@@ -45,199 +51,94 @@ PartitionChunk::~PartitionChunk()
 void PartitionChunk::cleanUp()
 {
     delete m_root; m_root = NULL;
+    m_knotsMap.clear();
 
-    if (m_cellIntegrals) {
-
-        free2dArray(m_cellIntegrals);
-        m_cellIntegrals = NULL;
-    }
-
-    if (m_data) {
-
-        free2dArray(m_data);
-        m_data = NULL;
-    }
+    m_infos.clear();
 }
 
-void PartitionChunk::setData(Float** const data, const Float& cellSquare)
-{
-    m_data = data;
-    m_cellSquare = cellSquare;
-    m_fullIntegral = 0.;
-
-    for (int i = 0; i < kThetaSize-1; ++i)
-        for (int j = 0; j < kPhiSize-1; ++j) {
-
-            m_cellIntegrals[j][i] = approxIntegral(GreedRect(i, j, i+1, j+1));
-            m_fullIntegral += m_cellIntegrals[j][i];
-        }
-}
-
-void PartitionChunk::refine()
-{
-    refineNode(m_root);
-}
-
-void PartitionChunk::refineNode(Node* node)
+void PartitionChunk::processNode(Node* node)
 {
     if (node->isLeaf()) {
 
-        Float nodeIntegral    = integral(node->rect);
-        Float rectMaxError    = nodeIntegral*kEpsilon;
-
-        //std::cerr << "nodeIntegral " << nodeIntegral << std::endl;
-
-        if (node->rect.canSplitX() && node->rect.canSplitY()) {
-
-            Float xSplitError = rectError(node->rect.leftHalf()) +
-                                rectError(node->rect.rightHalf());
-
-            Float ySplitError = rectError(node->rect.topHalf()) +
-                                rectError(node->rect.bottomHalf());
-
-            //std::cerr << "xSplitError " << xSplitError << "ySplitError " << ySplitError << std::endl;
-
-            if ((xSplitError > rectMaxError) && (xSplitError >= ySplitError)) {
-
-                node->splitX();
-            }
-            else if ((ySplitError > rectMaxError) && (ySplitError > xSplitError)) {
-
-                node->splitY();
-            }
-        }
-        else if (node->rect.canSplitX()) {
-
-            Float xSplitError = rectError(node->rect.leftHalf()) +
-                                rectError(node->rect.rightHalf());
-
-
-            if (xSplitError > rectMaxError) {
-
-                node->splitX();
-            }
-        }
-        else if (node->rect.canSplitY()) {
-
-            Float ySplitError = rectError(node->rect.topHalf()) +
-                                rectError(node->rect.bottomHalf());
-
-
-            if (ySplitError > rectMaxError) {
-
-                node->splitY();
-            }
-        }
-    }
-
-    if (!node->isLeaf()) {
-
-        refineNode(node->pChild1);
-        refineNode(node->pChild2);
-    }
-}
-
-Float PartitionChunk::integral(const GreedRect& rect)
-{
-    Float res = 0.;
-
-    for (int i = rect.x1; i < rect.x2; ++i)
-        for (int j = rect.y1; j < rect.y2; ++j)
-            res += m_cellIntegrals[j][i];
-
-    return res;
-}
-
-Float PartitionChunk::approxIntegral(const GreedRect& rect)
-{
-    return 0.25 * ( m_data[rect.y1][rect.x1] +
-                    m_data[rect.y2][rect.x1] +
-                    m_data[rect.y1][rect.x2] +
-                    m_data[rect.y2][rect.x2]) *
-    (rect.square * m_cellSquare);
-}
-
-Float PartitionChunk::rectError(const GreedRect& rect)
-{
-    Float res = 0.;
-    Float a, b, c, d;
-
-    a = m_data[rect.y1][rect.x1] / rect.square;
-    b = m_data[rect.y1][rect.x2] / rect.square;
-    c = m_data[rect.y2][rect.x1] / rect.square;
-    d = m_data[rect.y2][rect.x2] / rect.square;
-
-    for (int i = rect.x1; i < rect.x2; ++i)
-        for (int j = rect.y1; j < rect.y2; ++j) {
-
-            res +=  std::abs(m_data[j][i]  -  (a*(rect.x2 - i)*(rect.y2 - j)
-                                           + b*(i - rect.x1)*(rect.y2 - j)
-                                           + c*(rect.x2 - i)*(j - rect.y1)
-                                           + d*(i - rect.x1)*(j - rect.y1)));
-        }
-
-    return res*m_cellSquare;
-}
-
-
-void PartitionChunk::createRectsList()
-{
-    processTreeNode(m_root);
-}
-
-void PartitionChunk::processTreeNode(Node* node)
-{
-    if (node->isLeaf()) {
-
-        int  keys[4];
         int  indeces[4];
         Knot knots[4];
-        Float values[4];
 
-        GreedRect &r = node->rect;
+        Rect &rect = node->interpolation.rect;
 
-        keys[0] = r.x1 + r.y1*kThetaSize; //tl
-        keys[1] = r.x2 + r.y1*kThetaSize; //tr
-        keys[2] = r.x1 + r.y2*kThetaSize; //bl
-        keys[3] = r.x2 + r.y2*kThetaSize; //br
-
-        Float x1 = r.x1 * kThetaResolution;
-        Float x2 = r.x2 * kThetaResolution;
-        Float y1 = r.y1 * kPhiResolution;
-        Float y2 = r.y2 * kPhiResolution;
-
-        values[0] = m_data[r.y1][r.x1];
-        values[1] = m_data[r.y1][r.x2];
-        values[2] = m_data[r.y2][r.x1];
-        values[3] = m_data[r.y2][r.x2];
-
-        knots[0] = Knot(x1, y1, values[0]);
-        knots[1] = Knot(x2, y1, values[1]);
-        knots[2] = Knot(x1, y2, values[2]);
-        knots[3] = Knot(x2, y2, values[3]);
+        knots[0] = Knot(rect.x1, rect.y1, node->interpolation.f_x1y1);
+        knots[1] = Knot(rect.x2, rect.y1, node->interpolation.f_x2y1);
+        knots[2] = Knot(rect.x1, rect.y2, node->interpolation.f_x1y2);
+        knots[3] = Knot(rect.x2, rect.y2, node->interpolation.f_x2y2);
 
         for (int i = 0; i < 4; ++i) {
 
-            if (m_knotsMap.find(keys[i]) == m_knotsMap.end()) {
+            if (m_knotsMap.find(knots[i]) == m_knotsMap.end()) {
 
                 indeces[i] = m_knots.size();
                 m_knots.push_back(knots[i]);
-                m_knotsMap[keys[i]] = indeces[i];
+                m_knotsMap[knots[i]] = indeces[i];
             }
             else {
 
-                indeces[i] = m_knotsMap[keys[i]];
+                indeces[i] = m_knotsMap[knots[i]];
             }
         }
 
-        m_rects.push_back(Rect(indeces[0], indeces[1], indeces[2], indeces[3], &m_knots));
+        m_rects.push_back(PartitionRect(indeces[0], indeces[1], indeces[2], indeces[3], &m_knots));
     }
     else {
 
-        processTreeNode(node->pChild1);
-        processTreeNode(node->pChild2);
+        processNode(node->pChild1);
+        processNode(node->pChild2);
     }
 }
+
+
+void PartitionChunk::process()
+{
+    InfosContainer::const_iterator i = m_infos.begin();
+
+    for (; i != m_infos.end(); ++i) {
+
+        int  indeces[4];
+        Knot knots[4];
+
+        const Rect &rect = i->interpolation.rect;
+
+        knots[0] = Knot(rect.x1, rect.y1, i->interpolation.f_x1y1);
+        knots[1] = Knot(rect.x2, rect.y1, i->interpolation.f_x2y1);
+        knots[2] = Knot(rect.x1, rect.y2, i->interpolation.f_x1y2);
+        knots[3] = Knot(rect.x2, rect.y2, i->interpolation.f_x2y2);
+
+        for (int j = 0; j < 4; ++j) {
+
+            if (m_knotsMap.find(knots[j]) == m_knotsMap.end()) {
+
+                indeces[j] = m_knots.size();
+                m_knots.push_back(knots[j]);
+                m_knotsMap[knots[j]] = indeces[j];
+            }
+            else {
+
+                indeces[j] = m_knotsMap[knots[j]];
+            }
+        }
+
+        m_rects.push_back(PartitionRect(indeces[0], indeces[1], indeces[2], indeces[3], &m_knots));
+    }
+}
+
+Float PartitionChunk::currentError() const
+{
+    Float error = 0.;
+
+    InfosContainer::const_iterator i = m_infos.begin();
+    for (; i != m_infos.end(); ++i)
+        error += i->error;
+
+    return error;
+}
+
 
 
 bool PartitionChunk::load(FILE *file)
@@ -277,10 +178,9 @@ bool PartitionChunk::load(FILE *file)
         if (!fscanf(file, "%d\t%d\t%d\t%d", &tl, &tr, &bl, &br))
             return false;
 
-        m_rects.push_back(Rect(tl, tr, bl, br, &m_knots));
+        m_rects.push_back(PartitionRect(tl, tr, bl, br, &m_knots));
     }
 
-    normalize();
     fillValues();
 
     fprintf(stderr, "chunk loaded: %e -- %e\t%lu\n", m_minAngle, m_maxAngle, (unsigned long int)m_rects.size());
@@ -307,7 +207,7 @@ bool PartitionChunk::save(FILE *file)
 
     //rects
     {
-        RectsVector::iterator i;
+        PartitionRectsVector::iterator i;
 
         fprintf(file, "%lu\n", (long unsigned int)m_rects.size());
 
@@ -325,7 +225,7 @@ void PartitionChunk::normalize()
     //calculate full integral
     Float integral = 0.;
 
-    RectsVector::iterator i = m_rects.begin();
+    PartitionRectsVector::iterator i = m_rects.begin();
     for (; i != m_rects.end(); ++i) {
 
         Float rectIntegral = 0.25* (m_knots[i->tl].value +
@@ -346,7 +246,7 @@ void PartitionChunk::normalize()
 
 void PartitionChunk::fillValues()
 {
-    RectsVector::iterator i;
+    PartitionRectsVector::iterator i;
     Float value = 0.;
 
     m_values.clear();
@@ -364,4 +264,8 @@ void PartitionChunk::fillValues()
 
         m_values.push_back(value);
     }
+
+#if defined TEST
+    std::cerr << "full integral: "<<  value << std::endl;
+#endif
 }

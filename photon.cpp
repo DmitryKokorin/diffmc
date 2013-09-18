@@ -66,14 +66,32 @@ void Photon::move()
     const Angle a = Angle(s_i, Optics::director);
     const Float theta = symmetrizeTheta(a.theta);
 
-    const Float meanFreePath = (Optics::OCHANNEL == channel) ? oLength(theta) : eLength(theta);
     const Float nn = (Optics::OCHANNEL == channel) ? Optics::OBeam::n(a) : Optics::EBeam::n(a);
+
+#if TEST
+
+    Float meanFreePath = (Optics::OCHANNEL == channel) ? oLength(theta) : eLength(theta);
+    meanFreePath = meanFreePath*Optics::la / (meanFreePath + Optics::la);
+#else
+    const Float meanFreePath = (Optics::OCHANNEL == channel) ? oLength(theta) : eLength(theta);
+#endif
 
     rnd = random();
 
     const Float d = -log1p(-rnd)*meanFreePath;
 
     pos  += d*s_i;
+
+    if (isinf(pos.x())) {
+
+        std::cerr << "pos.x() is inf (move)" << std::endl;
+        std::cerr << "d = " << d <<
+                     " rnd = " << rnd <<
+                     " meanFreePath = " << meanFreePath <<
+                     " s_i.x() = " << s_i.x() << std::endl;
+        exit(-1);
+    }
+
     time += d*nn;
 }
 
@@ -122,14 +140,14 @@ void Photon::scatter()
         rectIdx = i - values.begin();
 
     //adjust point
-    Float p, t;
-    choosePointInRect(t, p, rectIdx, randX, randY);
+    Float p, ct;
+    choosePointInRect(ct, p, rectIdx, randX, randY);
 
     if (randPhi > 0.5)   //choose one of symmetrical cases
         p = 2*M_PI - p;
 
-    Float sintheta = sin(t);
-    Vector3 s_s =  Vector3(sintheta*cos(p), sintheta*sin(p), cos(t));
+    Float st = sqrt(1-ct*ct);
+    Vector3 s_s =  Vector3(st*cos(p), st*sin(p), ct);
 
     s_i = invert(mtx)*s_s;
     s_i.normalize();  //to be sure
@@ -163,7 +181,7 @@ void Photon::createTransformToPartitionCoords(Matrix3& mtx, Vector3& nn, Angle& 
 
 void Photon::choosePointInRect(Float& x, Float& y, const int rectNum, const Float randX, const Float randY)
 {
-    Rect& rect = m_chunk->rects()[rectNum];
+    PartitionRect& rect = m_chunk->rects()[rectNum];
     KnotsVector &knots = m_chunk->knots();
 
     Float b1 = knots[rect.tl].value;
@@ -194,7 +212,7 @@ void Photon::choosePointInRect(Float& x, Float& y, const int rectNum, const Floa
             else {
 
                 x = 0.5;
-                std::cerr << "x out of range, " << x1 << '\t' << x2 << std::endl;
+                //std::cerr << "x out of range, " << x1 << '\t' << x2 << std::endl;
             }
         }
     }
@@ -220,7 +238,7 @@ void Photon::choosePointInRect(Float& x, Float& y, const int rectNum, const Floa
             else {
 
                 y = 0.5;
-                std::cerr << "y out of range, " << y1 << '\t' << y2 << std::endl;
+                //std::cerr << "y out of range, " << y1 << '\t' << y2 << std::endl;
             }
         }
     }

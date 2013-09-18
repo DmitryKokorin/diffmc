@@ -110,7 +110,7 @@ bool DiffMCApp::getOpts(int argc, char ** argv)
                 return false;
 
             std::stringstream stream(argv[i]);
-            stream >> options_.seed;
+            stream >> options_.points;
         }
         else if (arg == "--loadoeprofile") {
 
@@ -226,35 +226,39 @@ int DiffMCApp::run()
     cerr.precision(17);
     cerr << scientific;
 
-    cerr << "# seed = "    << options_.seed    << endl;
-    cerr << "# maxtime = " << options_.maxTime << endl;
-    cerr << "# H = "       << Optics::H        << endl;
-    cerr << "# lambda = "  << Optics::lambda   << endl;
+    cerr << "# seed = "    << options_.seed       << endl;
+    cerr << "# maxtime = " << options_.maxTime    << endl;
+    cerr << "# photons = " << options_.maxPhotons << endl;
+    cerr << "# points = "  << options_.points     << endl;
+    cerr << "# H = "       << Optics::H           << endl;
+    cerr << "# lambda = "  << Optics::lambda      << endl;
 
     options_.maxTime *= Optics::c;
 
     m_dataBuff.prepare(options_.points, options_.maxTime);
 
+#if !defined TEST
     //free path
     if (!prepareFreePath<Optics::OBeam>(m_oLength, "o", options_.oFreePathOptions, options_.oFreePathName))
         return -1;
+#endif
 
     if (!prepareFreePath<Optics::EBeam>(m_eLength, "e", options_.eFreePathOptions, options_.eFreePathName))
         return -1;
-
 
     //e channel probability
     if (!prepareEChannelProb(m_eChannelProb))
         return -1;
 
+Partition pOE, pEO, pEE;
 
-    std::cerr << options_.oeProfileOptions << ' ' << Load << std::endl;
-    Partition pOE, pEO, pEE;
+#if !defined TEST
     if (!preparePartition<IndicatrixOE>(pOE, "o-e", options_.oeProfileOptions, options_.oeProfileName))
         return -1;
 
     if (!preparePartition<IndicatrixEO>(pEO, "e-o", options_.eoProfileOptions, options_.eoProfileName))
         return -1;
+#endif
 
     if (!preparePartition<IndicatrixEE>(pEE, "e-e", options_.eeProfileOptions, options_.eeProfileName))
         return -1;
@@ -263,7 +267,7 @@ int DiffMCApp::run()
     cerr << "scattering..." << endl;
     Photon::init(&m_oLength, &m_eLength, &pOE, &pEO, &pEE, &m_eChannelProb);
 
-    const int flushRate = 1000;
+    const int64_t flushRate = 1000;
     m_saveRate  = omp_get_max_threads()*flushRate;
 
     const Float t = 0.5*M_PI; //angle with director
@@ -276,13 +280,14 @@ int DiffMCApp::run()
     #pragma omp parallel
     {
         RngEngine rng_engine;
+
         rng_engine.seed(options_.seed + kSeedIncrement*omp_get_thread_num());
 
-        int  scatteredCount = 0;
+        int64_t scatteredCount = 0;
         DataBuff buff(options_.points, options_.maxTime);
 
         #pragma omp for schedule (dynamic)
-        for (int i = 0; i < options_.maxPhotons; ++i) {
+        for (int64_t i = 0; i < options_.maxPhotons; ++i) {
 
             Photon ph(rng_engine, initVector, Optics::ECHANNEL);
             size_t timeIdx = 0;
@@ -327,6 +332,17 @@ size_t DiffMCApp::processScattering(const Photon& ph, DataBuff& buff, size_t tim
     while ( i != buff.points.end() && (i->time < ph.time)) {
 
         Vector3 r = ph.pos - ph.s_i * (ph.time - i->time)/nn;
+
+        if (isnan(r.x())) {
+
+            std::cerr << "r.x() is nan (processScattering)" << std::endl;
+            std::cerr << "ph.pos.x() =" << ph.pos.x() <<
+                         " ph.s_i.x() = " << ph.s_i.x() <<
+                         " ph.time = " << ph.time <<
+                         " i->time = " << i->time <<
+                         " nn = " << nn <<std::endl;
+            exit(-1);
+        }
 
         i->appendPhoton(r, ph.scatterings);
         ++i;
@@ -411,7 +427,7 @@ bool DiffMCApp::prepareEChannelProb(LinearInterpolation& l)
     return true;
 }
 
-void DiffMCApp::flushBuffers(int &scatteredCount, DataBuff &buff)
+void DiffMCApp::flushBuffers(int64_t &scatteredCount, DataBuff &buff)
 {
     #pragma omp critical
     {

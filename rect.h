@@ -1,42 +1,43 @@
 #pragma once
 
-#include <vector>
 #include "common.h"
 
-struct Knot
+
+class Rect
 {
-    Knot(const Float _x, const Float _y, const Float _value)
-        : x(_x)
-        , y(_y)
-        , value(_value)
-    {};
+public:
+    Rect()
+      : x1()
+      , y1()
+      , x2()
+      , y2()
+      , midx()
+      , midy()
+      , width()
+      , height()
+      , square()
+    {}
 
-    Knot()
-        : x()
-        , y()
-        , value()
-    {};
+    Rect(const Float& x1_, const Float& y1_, const Float& x2_, const Float& y2_) :
+    x1(x1_),
+    y1(y1_),
+    x2(x2_),
+    y2(y2_),
+    midx((x1+x2)/2),
+    midy((y1+y2)/2),
+    width(x2-x1),
+    height(y2-y1),
+    square(width*height)
+    {
+    }
 
-    Float x;
-    Float y;
-    Float value;
-};
+    Rect topHalf()    const { return Rect(x1, y1, x2, midy); }
+    Rect bottomHalf() const { return Rect(x1, midy, x2, y2); }
+    Rect leftHalf()   const { return Rect(x1, y1, midx, y2); }
+    Rect rightHalf()  const { return Rect(midx, y1, x2, y2); }
 
-struct Rect
-{
-
-    typedef std::vector<Knot> KnotsVector;
-
-    Rect(const int tl, const int tr,
-         const int bl, const int br, KnotsVector *_knots);
-
-    int tl, tr,
-        bl, br;
-
-    Float x1, x2, y1, y2;
-
-    Float   width,
-            height;
-
-    Float   square;
+    Float x1, y1, x2, y2;
+    Float midx, midy;
+    Float width, height;
+    Float square;
 };

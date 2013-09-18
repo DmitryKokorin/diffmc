@@ -31,16 +31,16 @@ public:
 
 //calculates distance between two functions defined on a sphere
 template <class T>
-Float distance(T &func1, T &func2)
+Float distance(T &func1, T &func2, double tolerance)
 {
     using namespace detail;
     using namespace spherical;
 
-    Float f1_norm = integral(func1);
-    Float f2_norm = integral(func2);
+    Float f1_norm = integral(func1, tolerance);
+    Float f2_norm = integral(func2, tolerance);
 
     DistanceFunctor<T> distanceFunctor = DistanceFunctor<T>(func1, f1_norm, func2, f2_norm);
 
-    return integral(distanceFunctor);
+    return integral(distanceFunctor, tolerance);
 }
 

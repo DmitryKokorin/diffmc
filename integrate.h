@@ -2,7 +2,7 @@
 
 #include <algorithm>
 #include <stdexcept>
-#include <iostream>
+#include <limits>
 
 #include "mathcompat.h"
 #include "common.h"
@@ -13,7 +13,7 @@ namespace integrate {
 template <typename T>
 Float adaptiveStep(T &func, const Float a, const Float b,
                             const Float fa, const Float fb,
-                            const Float tolerance, const Float estimate, const int depth, const int maxdepth)
+                            const Float max_abs_error, const int depth, const int maxdepth)
 {
     static const Float alpha = std::sqrt(2.0/3.0);
     static const Float beta  = 1.0/std::sqrt(5.0);
@@ -39,24 +39,24 @@ Float adaptiveStep(T &func, const Float a, const Float b,
                         625.0*(fml  + fmr) +
                         672.0*fm);
 
-    if (std::abs(i2 - i1) < tolerance*estimate || depth > maxdepth || mll <= a || b <= mrr) {
+    if (std::abs(i2 - i1) < max_abs_error || depth > maxdepth || mll <= a || b <= mrr) {
 
         if (mll <= a || b <= mrr)
-            throw std::runtime_error("no more numbers");
+            //throw std::runtime_error("no more numbers");
+            return 0.;
 
-        //std::cerr << "i1 = " << i1 << std::endl;
         return i1;
     }
     else {
 
         int d = depth + 1;
 
-        return  adaptiveStep(func, a,   mll, fa,   fmll, tolerance, estimate, d, maxdepth) +
-                adaptiveStep(func, mll, ml,  fmll, fml,  tolerance, estimate, d, maxdepth) +
-                adaptiveStep(func, ml,  m,   fml,  fm,   tolerance, estimate, d, maxdepth) +
-                adaptiveStep(func, m,   mr,  fm,   fmr,  tolerance, estimate, d, maxdepth) +
-                adaptiveStep(func, mr,  mrr, fmr,  fmrr, tolerance, estimate, d, maxdepth) +
-                adaptiveStep(func, mrr, b,   fmrr, fb,   tolerance, estimate, d, maxdepth);
+        return  adaptiveStep(func, a,   mll, fa,   fmll, max_abs_error, d, maxdepth) +
+                adaptiveStep(func, mll, ml,  fmll, fml,  max_abs_error, d, maxdepth) +
+                adaptiveStep(func, ml,  m,   fml,  fm,   max_abs_error, d, maxdepth) +
+                adaptiveStep(func, m,   mr,  fm,   fmr,  max_abs_error, d, maxdepth) +
+                adaptiveStep(func, mr,  mrr, fmr,  fmrr, max_abs_error, d, maxdepth) +
+                adaptiveStep(func, mrr, b,   fmrr, fb,   max_abs_error, d, maxdepth);
     }
 }
 
@@ -81,7 +81,13 @@ Float adaptive(T &func, const Float a, const Float b,
     for (int i = 1; i < 12; ++i)
         y[i]=func(m+x[i]*h);
 
-    Float estimate = h*
+    Float i2 = (h/6.0)*(y[0] + y[12] + 5.0*(y[4] + y[8]));
+    Float i1 = (h/1470.0)*(   77.0*(y[1] + y[12])
+                           + 432.0*(y[2] + y[10])
+                           + 625.0*(y[4] + y[8])
+                           + 672.0*y[6]);
+
+    Float is = h*
         (0.0158271919734802*(y[0]+y[12])
         +0.0942738402188500*(y[1]+y[11])
         +0.155071987336585 *(y[2]+y[10])
@@ -90,14 +96,20 @@ Float adaptive(T &func, const Float a, const Float b,
         +0.224926465333340 *(y[5]+y[7])
         +0.242611071901408 *y[6]);
 
-    estimate = std::abs(estimate);
-    if (0.0 == estimate)
-        estimate = b - a;
+    Float err1 = std::abs(i1 - is);
+    Float err2 = std::abs(i2 - is);
 
-    //std::cerr << estimate << std::endl;
+    Float r = (err2 != 0.0) ? err1 / err2 : 1.0;
+    Float t = (r > 0.0 && r < 1.0) ? tolerance/r : tolerance;
 
+    if (is == 0.0)
+        is = b - a;
 
-    return adaptiveStep(func, a, b, y[0], y[12], tolerance, estimate, 0, maxdepth);
+    is = std::abs(is);
+
+    Float max_abs_error = t*is;
+
+    return adaptiveStep(func, a, b, y[0], y[12], max_abs_error, 0, maxdepth);
 }
 
 
