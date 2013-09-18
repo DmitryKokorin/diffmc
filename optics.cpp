@@ -48,7 +48,7 @@ const Float k0 = 2.*M_PI / lambda;
 const Float T = 301.;
 const Float Kb = 1.38e-16;
 
-const Float H = 35.0e+4;
+const Float H = 15.0e+4;
 //const Float Hi_alpha = 5e-6;
 const Float Hi_alpha = 1.1e-7;
 const Float xi = sqrt(K3/Hi_alpha)/H;
