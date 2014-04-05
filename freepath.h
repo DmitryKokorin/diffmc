@@ -2,7 +2,6 @@
 
 #include "mathcompat.h"
 
-
 #include <omp.h>
 
 #include "common.h"
@@ -103,9 +102,7 @@ void createFreePath(LinearInterpolation& li, const int kPoints = 400)
         typedef freepath::Functor<T> Functor;
         Functor functor(indO, indE, nn, a_i);
 //        Float integral = spherical::integral(functor);
-        Float integral = rect_integrate(freepath::RectFunctor<Functor>(functor), Rect(-1., 0., 1., 2*M_PI), 1e-15, 20);
-
-
+        Float integral = rect_integrate(freepath::RectFunctor<Functor>(functor), Rect(-1., 0., 1., 2*M_PI), 1e-8, 20);
 
         li[i] = 1./(integral);
     }

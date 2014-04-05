@@ -169,20 +169,20 @@ bool DiffMCApp::preparePartition(Partition &p, const char *name, const int optio
         Float left = 0.01;
         Float right = 0.5* M_PI;
 
-        //const Float tolerance = 0.1;
         const Float tolerance = 0.01;
-        //const Float tolerance = 0.001;
+        //const Float tolerance = 0.0025;
+        const Float min_width = M_PI / 1000000.;
 
         Float dist;
         int i = 0;
 
         intervals.push_back(Interval(0., left));
 
-#if !defined TEST
+//#if !defined TEST
         int num_threads = omp_get_max_threads();
-#else
-        int num_threads = 1;
-#endif
+//#else
+//        int num_threads = 1;
+//#endif
 
         #pragma omp parallel for
         for (int j = 0; j < num_threads; ++j) {
@@ -200,7 +200,7 @@ bool DiffMCApp::preparePartition(Partition &p, const char *name, const int optio
 
                 T ind_left = createIndicatrix<T>(local_left);
 
-                while (1) {
+                while (local_right - local_left > min_width) {
 
                     T ind_right  = createIndicatrix<T>(local_right);
 
@@ -212,7 +212,7 @@ bool DiffMCApp::preparePartition(Partition &p, const char *name, const int optio
                     else
                         break;
 
-                                    }
+                }
 
                 #pragma omp critical
                 {

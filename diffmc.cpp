@@ -271,6 +271,7 @@ Partition pOE, pEO, pEE;
     m_saveRate  = omp_get_max_threads()*flushRate;
 
     const Float t = 0.5*M_PI; //angle with director
+    //const Float t = M_PI / 3.; //angle with director
     const Vector3 initVector = Vector3(cos(t), 0, sin(t)).normalize();
     cerr << "initial angle: " << t << endl;
 

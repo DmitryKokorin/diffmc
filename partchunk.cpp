@@ -16,9 +16,8 @@
 // phi   - y
 //
 
-//const Float PartitionChunk::kEpsilon = 0.01;
-//const Float PartitionChunk::kEpsilon = 0.01;
 const Float PartitionChunk::kEpsilon = 0.01;
+//const Float PartitionChunk::kEpsilon = 0.0025;
 
 const Float PartitionChunk::kMinX = -1.;
 const Float PartitionChunk::kMaxX = 1.;

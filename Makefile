@@ -15,6 +15,7 @@ LDFLAGS  += -g
 #arch
 #CPPFLAGS +=-march=native -O3 -ffast-math -pipe
 CPPFLAGS += -march=native -O3
+#CPPFLAGS += -std=c++11
 
 #warnings
 CPPFLAGS +=-W -Wall -Weffc++ -Werror -pedantic

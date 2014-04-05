@@ -5,8 +5,8 @@
 #include "angle.h"
 #include "vector3.h"
 
-#define TEST 1
-#define EE_ONLY 1
+//#define TEST 1
+//#define EE_ONLY 1
 
 
 namespace Optics {
@@ -143,44 +143,6 @@ public:
             return Optics::OBeam::e(s, director_, a);
         }
     }
-/*
-    //refraction index
-    static inline Float n(const Angle& a)
-    {
-        return sqrt(eps_perp*eps_par / (eps_perp + eps_a*a.cos2theta));
-    }
-
-    static inline Vector3 k(const Vector3& direction, const Angle& a)
-    {
-        Float nn = n(a);
-        return Vector3(direction).normalize()*nn;
-    }
-
-    static inline Float cosd(const Angle& a)
-    {
-        return (eps_perp*a.sin2theta + eps_par*a.cos2theta) /
-                sqrt(eps_perp*eps_perp*a.sin2theta + eps_par*eps_par*a.cos2theta);
-    }
-
-    static inline Float f2(const Angle& a)
-    {
-        return (eps_perp*a.sin2theta + eps_par*a.cos2theta) *
-               (eps_perp*eps_perp*a.sin2theta + eps_par*eps_par*a.cos2theta) /
-               (eps_par*eps_perp*eps_perp);
-    }
-
-    //polarization vector
-    static inline Vector3 e(const Vector3& s, const Vector3& director_, const Angle& a)
-    {
-        if (fabs(a.sintheta) > kMachineEpsilon) {
-
-            return (s*eps_par*a.costheta - director_*(eps_par*a.cos2theta + eps_perp*a.sin2theta)).normalize();
-        }
-        else { //along the optical axis, so we use the expression for the ordinary beam polarization
-
-            return Optics::OBeam::e(s, director_, a);
-        }
-    }*/
 #else
 
     static inline Float n(const Angle& /*a*/)
